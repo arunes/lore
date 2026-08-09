@@ -87,6 +87,7 @@ public static class ServiceHelpers
         );
 
         return services
+            .AddHostedService<StartupService>()
             .AddHostedService<ChannelProcessor<FileArrivalRequest>>()
             .AddHostedService<ChannelProcessor<FileClassifyRequest>>()
             .AddHostedService<ChannelProcessor<TextExtractRequest>>()

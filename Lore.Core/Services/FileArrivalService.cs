@@ -31,7 +31,10 @@ public class FileArrivalService(
             "Starting FileArrival process for {TotalFiles} files",
             requests.Count
         );
+
         var fileEntries = new ConcurrentBag<FileEntry>();
+        var filesToDelete = new ConcurrentBag<string>();
+
         var parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount,
@@ -62,6 +65,12 @@ public class FileArrivalService(
                 var fileInfo = new FileInfo(request.FilePath);
                 if (!fileInfo.Exists)
                 {
+                    if (existingFiles.ContainsKey(request.FilePath))
+                    { // file is deleted
+                        filesToDelete.Add(request.FilePath);
+                        return;
+                    }
+
                     logger.LogWarning(
                         "File '{FilePath}' can't be inspected, skipping",
                         request.FilePath
@@ -107,6 +116,10 @@ public class FileArrivalService(
             var strategy = dbContext.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
+                await dbContext.Files
+                    .Where(fl => filesToDelete.Contains(fl.Path))
+                    .ExecuteDeleteAsync(cancellationToken);
+
                 await dbContext.BulkInsertOrUpdateAsync(
                     fileEntries,
                     new BulkConfig
