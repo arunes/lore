@@ -11,6 +11,8 @@ using Lore.Core.LLM;
 using Lore.Data;
 using SmartComponents.LocalEmbeddings;
 
+namespace Lore.Core.Services;
+
 public record StreamingSearchContextResult(
     List<int> TopChunkIds,
     string FormattedContext,

@@ -20,6 +20,7 @@ public static class ServiceHelpers
             .AddSingleton<EmbeddingCache>()
             .AddSingleton<LocalEmbedder>()
             .AddSingleton<ISearchService, SearchService>()
+            .AddSingleton<IUserSettingsService, UserSettingsService>()
             .AddTransient<IChatClientFactory, ChatClientFactory>()
             .AddTransient<IChannelService<FileArrivalRequest>, FileArrivalService>()
             .AddTransient<IChannelService<TextExtractRequest>, TextExtractService>()

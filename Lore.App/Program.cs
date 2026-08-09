@@ -1,6 +1,7 @@
 ﻿using System.Threading.Channels;
 using Lore.Core;
 using Lore.Core.LLM;
+using Lore.Core.Services;
 using Lore.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,7 @@ app.MapGet(
         string query,
         bool multiQuery,
         ISearchService searchService,
+        IUserSettingsService userSettings,
         HttpResponse response,
         CancellationToken cancellationToken
     ) =>
@@ -46,13 +48,15 @@ app.MapGet(
 await app.RunAsync();
 
 public class DummyService(
-    Channel<FileArrivalRequest> channel,
+    IUserSettingsService userSettings,
     EmbeddingCache embeddingCache,
+    Channel<FileArrivalRequest> channel,
     LoreDbContext db
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await userSettings.InitializeAsync(stoppingToken);
         await embeddingCache.InitializeAsync(stoppingToken);
 
         //await Task.Delay(1000);
