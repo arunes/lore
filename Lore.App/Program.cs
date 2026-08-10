@@ -1,44 +1,19 @@
-﻿using Lore.Core;
-using Lore.Core.Services;
-using Lore.Data;
+﻿using Lore.App.Commands;
+using Spectre.Console.Cli;
 
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
-builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-builder.Services.AddOpenApi();
-builder.Services.AddLoreServices();
-builder.Services.AddLoreProcessors();
-builder.Services.AddDataServices();
-
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
+var cancellationTokenSource = new CancellationTokenSource();
+Console.CancelKeyPress += (_, e) =>
 {
-    app.MapOpenApi();
-}
+    e.Cancel = true;
+    cancellationTokenSource.Cancel();
+    Console.WriteLine("Cancellation requested...");
+};
 
-app.MapGet(
-    "/ask",
-    async (
-        string query,
-        bool multiQuery,
-        ISearchService searchService,
-        HttpResponse response,
-        CancellationToken cancellationToken
-    ) =>
-    {
-        var searchResult = await searchService.SearchAsync(query, multiQuery, cancellationToken);
-        response.ContentType = "text/plain; charset=utf-8";
-        //response.Headers["X-Top-Chunk-Ids"] = string.Join(",", searchResult.TopChunkIds);
-        await foreach (
-            var token in searchResult.LLMResponseStream.WithCancellation(cancellationToken)
-        )
-        {
-            await response.WriteAsync(token, cancellationToken);
-            await response.Body.FlushAsync(cancellationToken);
-        }
-    }
-);
-await app.RunAsync();
+var cliApp = new CommandApp();
+cliApp.Configure(config =>
+{
+    config.AddCommand<ChatCommand>("chat");
+    config.AddCommand<UICommand>("ui");
+});
+
+return await cliApp.RunAsync(args, cancellationTokenSource.Token);

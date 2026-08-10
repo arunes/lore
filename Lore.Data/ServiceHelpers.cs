@@ -9,6 +9,7 @@ public static class ServiceHelpers
     {
         var dbPath =
             $"Data Source={GetDatabasePath()};Cache=Shared;Mode=ReadWriteCreate;Pooling=True;";
+        
         services.AddDbContext<LoreDbContext>(options =>
             options.UseSqlite(dbPath).UseSnakeCaseNamingConvention()
         );
