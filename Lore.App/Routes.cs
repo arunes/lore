@@ -8,8 +8,8 @@ public static class Routes
 {
     public static WebApplication RegisterRoutes(this WebApplication app)
     {
-        var apiLogger = app.Logger;
-        var apiGroup = app.MapGroup("/api");
+        ILogger apiLogger = app.Logger;
+        RouteGroupBuilder apiGroup = app.MapGroup("/api");
 
         apiGroup.MapPost(
             "chat",
@@ -20,15 +20,15 @@ public static class Routes
                 CancellationToken cancellationToken
             ) =>
             {
-                var chatSid = (request.ChatId ?? Guid.NewGuid()).ToString("N")[..8];
+                string chatSid = (request.ChatId ?? Guid.NewGuid()).ToString("N")[..8];
                 apiLogger.ChatRequestReceived(chatSid, request.Prompt.Length);
 
-                var ragService = ragFactory.GetRAGService();
-                var searchResult = await ragService.ChatAsync(request, cancellationToken);
+                IRAGService ragService = ragFactory.GetRAGService();
+                LoreChatResponse searchResult = await ragService.ChatAsync(request, cancellationToken);
                 response.ContentType = "text/plain; charset=utf-8";
                 response.Headers["X-Chat-Id"] = searchResult.ChatId.ToString();
                 await foreach (
-                    var token in searchResult.LLMResponseStream.WithCancellation(cancellationToken)
+                    string? token in searchResult.LLMResponseStream.WithCancellation(cancellationToken)
                 )
                 {
                     await response.WriteAsync(token, cancellationToken);

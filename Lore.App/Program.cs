@@ -1,9 +1,9 @@
-﻿using Lore.App;
+using Lore.App;
 using Lore.Core.Configuration;
 using Lore.Data;
 
-var port = 8081;
-var builder = WebApplication.CreateBuilder();
+int port = 8081;
+WebApplicationBuilder builder = WebApplication.CreateBuilder();
 builder.WebHost.UseUrls($"https://*:{port}");
 builder.Services.AddOpenApi()
             .AddLoreCore()
@@ -12,7 +12,7 @@ builder.Services.AddOpenApi()
 
 builder.Services.AddLoreTelemetry(builder.Configuration);
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
