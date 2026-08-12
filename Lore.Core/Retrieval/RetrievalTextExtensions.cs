@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
 
-namespace Lore.Common.Extensions;
+namespace Lore.Core.Retrieval;
 
-public static partial class StringExtensions
+internal static partial class RetrievalTextExtensions
 {
     // Compile-time generated regexes
     [GeneratedRegex(@"\n{3,}")]
@@ -32,24 +32,5 @@ public static partial class StringExtensions
         text = text.Trim();
 
         return string.IsNullOrWhiteSpace(text) ? null : text;
-    }
-
-    public static string CleanLLMJsonOutput(this string output)
-    {
-        var cleanText = output.Trim();
-        if (cleanText.StartsWith("```json"))
-        {
-            cleanText = cleanText[7..];
-        }
-        if (cleanText.StartsWith("```"))
-        {
-            cleanText = cleanText[3..];
-        }
-        if (cleanText.EndsWith("```"))
-        {
-            cleanText = cleanText[..^3];
-        }
-
-        return cleanText.Replace("\u00A0", " ").Replace("&nbsp;", " ");
     }
 }

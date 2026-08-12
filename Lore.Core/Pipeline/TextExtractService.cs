@@ -3,7 +3,7 @@ using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Lore.Common.Extensions;
+using Lore.Core.Retrieval;
 using Lore.Core.TextExtractors;
 using Lore.Data;
 using Lore.Data.Models;
