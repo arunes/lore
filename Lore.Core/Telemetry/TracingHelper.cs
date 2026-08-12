@@ -22,9 +22,4 @@ public static class TracingHelper
 
         return activity;
     }
-
-    public static string? CaptureTraceParent()
-    {
-        return Activity.Current?.Id;
-    }
 }

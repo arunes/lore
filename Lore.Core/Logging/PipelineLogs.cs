@@ -7,9 +7,6 @@ internal static partial class PipelineLogs
     [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Startup pipeline initialized")]
     public static partial void StartupComplete(this ILogger logger);
 
-    [LoggerMessage(EventId = 1002, Level = LogLevel.Debug, Message = "Seeded test file {path}")]
-    public static partial void SeededTestFile(this ILogger logger, string path);
-
     [LoggerMessage(EventId = 1003, Level = LogLevel.Information, Message = "Resuming {count} files with statuses: {statuses}")]
     public static partial void ResumeStarted(this ILogger logger, int count, string statuses);
 

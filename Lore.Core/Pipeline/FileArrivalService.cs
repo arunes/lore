@@ -2,13 +2,13 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading.Channels;
 using EFCore.BulkExtensions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Lore.Common.Extensions;
 using Lore.Core.Logging;
 using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Lore.Core.Pipeline;
 
@@ -32,16 +32,10 @@ public class FileArrivalService(
     {
         logger.FileArrivalStarted(requests.Count);
 
-        var fileEntries = new ConcurrentBag<FileEntry>();
+        var fileEntries = new ConcurrentBag<(FileEntry Entry, string? TraceParent)>();
         var filesToDelete = new ConcurrentBag<string>();
         var unchangedCount = 0;
         var skippedCount = 0;
-
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
-            CancellationToken = cancellationToken,
-        };
 
         Dictionary<string, DateTime> existingFiles = [];
         var incomingPaths = requests.Select(req => req.FilePath).Distinct();
@@ -59,10 +53,11 @@ public class FileArrivalService(
                 );
         }
 
-        await Parallel.ForEachAsync(
-            requests,
-            parallelOptions,
-            async (request, ct) =>
+        using var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
+        var tasks = requests.Select(async request =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
                 using var activity = TracingHelper.StartStageSpan("arrival", request.FilePath, request.TraceParent);
 
@@ -113,22 +108,23 @@ public class FileArrivalService(
                 using var fileStream = File.OpenRead(request.FilePath);
                 var fileHash = await fileStream.ComputeSha256HexAsync();
                 logger.FileHashed(request.FilePath, fileHash.Length);
-                fileEntries.Add(
-                    new FileEntry
-                    {
-                        Name = fileInfo.Name,
-                        Path = fileInfo.FullName,
-                        Directory = fileInfo.DirectoryName ?? "",
-                        Extension = fileInfo.Extension,
-                        FileCreatedAt = fileInfo.CreationTimeUtc,
-                        FileModifiedAt = fileInfo.LastWriteTimeUtc,
-                        Size = fileInfo.Length,
-                        Hash = fileHash,
-                        ProcessStatus = FileProcessStatus.Pending,
-                        CreatedAt = DateTime.UtcNow,
-                        ModifiedAt = DateTime.UtcNow,
-                    }
-                );
+
+                var entry = new FileEntry
+                {
+                    Name = fileInfo.Name,
+                    Path = fileInfo.FullName,
+                    Directory = fileInfo.DirectoryName ?? "",
+                    Extension = fileInfo.Extension,
+                    FileCreatedAt = fileInfo.CreationTimeUtc,
+                    FileModifiedAt = fileInfo.LastWriteTimeUtc,
+                    Size = fileInfo.Length,
+                    Hash = fileHash,
+                    ProcessStatus = FileProcessStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
+                    ModifiedAt = DateTime.UtcNow,
+                };
+
+                fileEntries.Add((entry, Activity.Current?.Id));
 
                 sw.Stop();
                 LoreMetrics.PipelineFilesProcessed.Add(1,
@@ -137,7 +133,15 @@ public class FileArrivalService(
                 LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
                     new KeyValuePair<string, object?>("pipeline.stage", "arrival"));
             }
-        );
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        var fileEntryList = fileEntries.Select(x => x.Entry).ToList();
 
         using (var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
@@ -149,7 +153,7 @@ public class FileArrivalService(
                     .ExecuteDeleteAsync(cancellationToken);
 
                 await dbContext.BulkInsertOrUpdateAsync(
-                    fileEntries,
+                    fileEntryList,
                     new BulkConfig
                     {
                         UpdateByProperties = [nameof(FileEntry.Path)],
@@ -164,13 +168,12 @@ public class FileArrivalService(
             });
         }
 
-        logger.FileArrivalFinished(fileEntries.Count, unchangedCount, filesToDelete.Count, skippedCount);
+        logger.FileArrivalFinished(fileEntryList.Count, unchangedCount, filesToDelete.Count, skippedCount);
 
-        if (fileEntries.Count > 0)
+        if (fileEntryList.Count > 0)
         {
-            logger.StageHandoff(fileEntries.Count, "TextExtract");
-            var traceParent = TracingHelper.CaptureTraceParent();
-            foreach (var entry in fileEntries)
+            logger.StageHandoff(fileEntryList.Count, "TextExtract");
+            foreach (var (entry, traceParent) in fileEntries)
             {
                 await textExtractChannel.Writer.WriteAsync(
                     new TextExtractRequest(entry.Path, traceParent),

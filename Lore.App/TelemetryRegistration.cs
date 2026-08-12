@@ -2,6 +2,7 @@ using Lore.Core.Telemetry;
 
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Lore.App;
@@ -18,6 +19,7 @@ public static class TelemetryRegistration
         }
 
         services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService("Lore"))
             .WithTracing(builder => builder
                 .AddSource("Lore")
                 .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)))

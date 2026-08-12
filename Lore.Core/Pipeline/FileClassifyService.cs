@@ -62,17 +62,12 @@ public class FileClassifyService(
                 .ToDictionaryAsync(fl => fl.Id, fl => fl, cancellationToken);
         }
 
-        var fileEntries = new ConcurrentBag<FileEntry>();
-        var parallelOptions = new ParallelOptions
+        var fileEntries = new ConcurrentBag<(FileEntry Entry, string? TraceParent)>();
+        using var semaphore = new SemaphoreSlim(4);
+        var tasks = requests.Select(async request =>
         {
-            MaxDegreeOfParallelism = 4,
-            CancellationToken = cancellationToken,
-        };
-
-        await Parallel.ForEachAsync(
-            requests,
-            parallelOptions,
-            async (request, ct) =>
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
                 using var activity = TracingHelper.StartStageSpan("classify", request.FileId.ToString(), request.TraceParent);
 
@@ -145,9 +140,15 @@ public class FileClassifyService(
                 LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
                     new KeyValuePair<string, object?>("pipeline.stage", "classify"));
 
-                fileEntries.Add(fileEntry);
+                fileEntries.Add((fileEntry, Activity.Current?.Id));
             }
-        );
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
 
         using (var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
@@ -155,12 +156,12 @@ public class FileClassifyService(
             await strategy.ExecuteAsync(async () =>
             {
                 var classifiedGroups = fileEntries
-                    .Where(e => e.ProcessStatus == FileProcessStatus.Classified)
-                    .GroupBy(e => new { e.PrimaryCategoryId, e.DocumentTypeId });
+                    .Where(e => e.Entry.ProcessStatus == FileProcessStatus.Classified)
+                    .GroupBy(e => new { e.Entry.PrimaryCategoryId, e.Entry.DocumentTypeId });
 
                 foreach (var group in classifiedGroups)
                 {
-                    var ids = group.Select(e => e.Id).ToList();
+                    var ids = group.Select(e => e.Entry.Id).ToList();
                     await dbContext
                         .Files.Where(f => ids.Contains(f.Id))
                         .ExecuteUpdateAsync(
@@ -176,8 +177,8 @@ public class FileClassifyService(
                 }
 
                 var failedIds = fileEntries
-                    .Where(e => e.ProcessStatus == FileProcessStatus.ClassificationFailed)
-                    .Select(e => e.Id)
+                    .Where(e => e.Entry.ProcessStatus == FileProcessStatus.ClassificationFailed)
+                    .Select(e => e.Entry.Id)
                     .ToList();
 
                 if (failedIds.Count > 0)
@@ -196,13 +197,12 @@ public class FileClassifyService(
             });
         }
 
-        var classified = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.Classified);
-        var failed = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.ClassificationFailed);
+        var classified = fileEntries.Count(e => e.Entry.ProcessStatus == FileProcessStatus.Classified);
+        var failed = fileEntries.Count(e => e.Entry.ProcessStatus == FileProcessStatus.ClassificationFailed);
         logger.ClassifyFinished(classified, failed);
 
         logger.StageHandoff(fileEntries.Count, "Chunking");
-        var traceParent = TracingHelper.CaptureTraceParent();
-        foreach (var entry in fileEntries)
+        foreach (var (entry, traceParent) in fileEntries)
         {
             await chunkingChannel.Writer.WriteAsync(
                 new ChunkingRequest(entry.Id, traceParent),

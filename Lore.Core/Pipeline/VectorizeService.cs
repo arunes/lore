@@ -44,40 +44,45 @@ public class VectorizeService(
         var incomingIds = requests.Select(req => req.FileId).Distinct().ToList();
         var fileChunkContents = await GetFileChunkContents(incomingIds, cancellationToken);
 
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = 2,
-            CancellationToken = cancellationToken,
-        };
-
         var vectorizedResults = new ConcurrentDictionary<int, List<ChunkVectorInformation>>();
         var perFileDurations = new ConcurrentDictionary<int, long>();
 
+        using var semaphore = new SemaphoreSlim(2);
         var sw = Stopwatch.StartNew();
-        Parallel.ForEach(
-            fileChunkContents,
-            parallelOptions,
-            fcc =>
+
+        var tasks = fileChunkContents.Select(async fcc =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
-                var fileSw = Stopwatch.StartNew();
+                await Task.Run(() =>
+                {
+                    var fileSw = Stopwatch.StartNew();
 
-                var fileId = fcc.Key;
-                var traceParent = requests.FirstOrDefault(r => r.FileId == fileId)?.TraceParent;
-                using var activity = TracingHelper.StartStageSpan("vectorize", fileId.ToString(), traceParent);
+                    var fileId = fcc.Key;
+                    var traceParent = requests.FirstOrDefault(r => r.FileId == fileId)?.TraceParent;
+                    using var activity = TracingHelper.StartStageSpan("vectorize", fileId.ToString(), traceParent);
 
-                vectorizedResults[fcc.Key] = GetVectorsForChunks(fcc.Value, activity);
+                    vectorizedResults[fcc.Key] = GetVectorsForChunks(fcc.Value, activity);
 
-                fileSw.Stop();
-                perFileDurations[fcc.Key] = fileSw.ElapsedMilliseconds;
+                    fileSw.Stop();
+                    perFileDurations[fcc.Key] = fileSw.ElapsedMilliseconds;
 
-                activity?.SetTag("file.vector_count", vectorizedResults[fcc.Key].Count);
-                LoreMetrics.PipelineFilesProcessed.Add(1,
-                    new KeyValuePair<string, object?>("pipeline.stage", "vectorize"),
-                    new KeyValuePair<string, object?>("result", "success"));
-                LoreMetrics.PipelineFileDuration.Record(fileSw.ElapsedMilliseconds,
-                    new KeyValuePair<string, object?>("pipeline.stage", "vectorize"));
+                    activity?.SetTag("file.vector_count", vectorizedResults[fcc.Key].Count);
+                    LoreMetrics.PipelineFilesProcessed.Add(1,
+                        new KeyValuePair<string, object?>("pipeline.stage", "vectorize"),
+                        new KeyValuePair<string, object?>("result", "success"));
+                    LoreMetrics.PipelineFileDuration.Record(fileSw.ElapsedMilliseconds,
+                        new KeyValuePair<string, object?>("pipeline.stage", "vectorize"));
+                });
             }
-        );
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
 
         sw.Stop();
         logger.LogDebug("All embeddings created for {TotalFiles} files in {TotalMilliseconds}ms",

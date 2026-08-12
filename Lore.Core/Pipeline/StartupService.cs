@@ -1,10 +1,11 @@
-using System.Collections.Concurrent;
 using System.Threading.Channels;
+
 using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Core.Settings;
 using Lore.Data;
 using Lore.Data.Models;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -30,18 +31,45 @@ public class StartupService(
     {
         await userSettings.InitializeAsync(stoppingToken);
         await embeddingCache.InitializeAsync(stoppingToken);
+        await ResumeFilesAsync(stoppingToken);
+        WatchDirectoriesAsync(stoppingToken);
 
         logger.StartupComplete();
-
-        await fileArrivalChannel.Writer.WriteAsync(
-            new FileArrivalRequest("/home/arunes/downloads/ai200cert3.png"), stoppingToken);
-        logger.SeededTestFile("/home/arunes/downloads/ai200cert3.png");
-
-        //await ResumeFiles(stoppingToken);
-        //await WatchDirectories(stoppingToken);
     }
 
-    private async Task WatchDirectories(CancellationToken cancellationToken)
+    // private async Task FullScanDirectoriesAsync(CancellationToken cancellationToken)
+    // {
+    //     var fileSources = await db.FileSources
+    //             .AsNoTracking()
+    //             .Where(fs => fs.IsEnabled)
+    //             .Select(fs => new { fs.Id, fs.Path, fs.ExcludePattern })
+    //             .ToListAsync(cancellationToken);
+
+    //     foreach (var fileSource in fileSources)
+    //     {
+    //         string[] excludedExtensions = fileSource.ExcludePattern?.Split(',') ?? [];
+    //         if (!Directory.Exists(fileSource.Path))
+    //         {
+    //             logger.DirectoryMissing(fileSource.Path);
+    //             continue;
+    //         }
+
+    //         string[] allFiles = Directory.GetFiles(fileSource.Path, "*.*", SearchOption.AllDirectories);
+    //         foreach (string filePath in allFiles)
+    //         {
+    //             string extension = Path.GetExtension(filePath);
+    //             if (excludedExtensions.Contains(extension))
+    //             {
+    //                 logger.WatcherIgnored(filePath);
+    //                 continue;
+    //             }
+
+    //             await fileArrivalChannel.Writer.WriteAsync(new FileArrivalRequest(filePath), cancellationToken);
+    //         }
+    //     }
+    // }
+
+    private async Task WatchDirectoriesAsync(CancellationToken cancellationToken)
     {
         var fileSources = await db.FileSources
                 .AsNoTracking()
@@ -67,7 +95,7 @@ public class StartupService(
     }
 
 
-    private async Task ResumeFiles(CancellationToken cancellationToken)
+    private async Task ResumeFilesAsync(CancellationToken cancellationToken)
     {
         FileProcessStatus[] resumableStatuses = [
             FileProcessStatus.ChunksCreated,
@@ -84,7 +112,7 @@ public class StartupService(
 
         await foreach (var file in resumableFiles.WithCancellation(cancellationToken))
         {
-            var task = file.ProcessStatus switch
+            ValueTask task = file.ProcessStatus switch
             {
                 FileProcessStatus.ChunksCreated => vectorizeChannel.Writer.WriteAsync(new VectorizeRequest(file.Id), cancellationToken),
                 FileProcessStatus.Classified => chunkingChannel.Writer.WriteAsync(new ChunkingRequest(file.Id), cancellationToken),

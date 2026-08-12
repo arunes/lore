@@ -30,11 +30,6 @@ public class ChunkingService(
     {
         logger.ChunkingStarted(requests.Count);
         var fileChunkEntries = new ConcurrentBag<FileEntryChunk>();
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
-            CancellationToken = cancellationToken,
-        };
 
         Dictionary<int, string?> fileEntryContents = [];
         var incomingIds = requests.Select(req => req.FileId).Distinct();
@@ -48,11 +43,13 @@ public class ChunkingService(
         }
 
         var chunkedFiles = new ConcurrentDictionary<int, int>();
+        var traceParents = new ConcurrentDictionary<int, string?>();
+        using var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
 
-        await Parallel.ForEachAsync(
-            requests,
-            parallelOptions,
-            async (request, ct) =>
+        var tasks = requests.Select(async request =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
                 using var activity = TracingHelper.StartStageSpan("chunking", request.FileId.ToString(), request.TraceParent);
 
@@ -66,6 +63,7 @@ public class ChunkingService(
 
                 var chunks = ChunkText(fileContent!);
                 chunkedFiles.TryAdd(request.FileId, chunks.Count);
+                traceParents.TryAdd(request.FileId, Activity.Current?.Id);
 
                 activity?.SetTag("file.chunk_count", chunks.Count);
 
@@ -88,7 +86,13 @@ public class ChunkingService(
                 LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
                     new KeyValuePair<string, object?>("pipeline.stage", "chunking"));
             }
-        );
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
 
         foreach (var (fileId, chunkCount) in chunkedFiles)
         {
@@ -121,9 +125,9 @@ public class ChunkingService(
         if (fileCount > 0)
         {
             logger.StageHandoff(fileCount, "Vectorize");
-            var traceParent = TracingHelper.CaptureTraceParent();
             foreach (var fileEntryId in distinctFileEntryIds)
             {
+                traceParents.TryGetValue(fileEntryId, out var traceParent);
                 await vectorizeChannel.Writer.WriteAsync(
                     new VectorizeRequest(fileEntryId, traceParent),
                     cancellationToken

@@ -34,12 +34,7 @@ public class TextExtractService(
     {
         logger.TextExtractStarted(requests.Count);
 
-        var fileEntries = new ConcurrentBag<FileEntry>();
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
-            CancellationToken = cancellationToken,
-        };
+        var fileEntries = new ConcurrentBag<(FileEntry Entry, string? TraceParent)>();
 
         Dictionary<string, int> fileEntryIds = [];
         var incomingPaths = requests.Select(req => req.FilePath).Distinct();
@@ -52,10 +47,11 @@ public class TextExtractService(
                 .ToDictionaryAsync(fl => fl.Path, fl => fl.Id, cancellationToken);
         }
 
-        await Parallel.ForEachAsync(
-            requests,
-            parallelOptions,
-            async (request, ct) =>
+        using var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
+        var tasks = requests.Select(async request =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
                 using var activity = TracingHelper.StartStageSpan("textextract", request.FilePath, request.TraceParent);
 
@@ -101,12 +97,12 @@ public class TextExtractService(
                         result = "extracted";
                     }
 
-                    fileEntries.Add(fileEntry);
+                    fileEntries.Add((fileEntry, Activity.Current?.Id));
                 }
                 catch (NotSupportedException)
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.NotSupportedFile;
-                    fileEntries.Add(fileEntry);
+                    fileEntries.Add((fileEntry, Activity.Current?.Id));
                     logger.FileNotSupported(request.FilePath, Path.GetExtension(request.FilePath));
                     result = "not_supported";
                 }
@@ -114,7 +110,7 @@ public class TextExtractService(
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.TextExtractionFailed;
                     fileEntry.Content = ex.Message;
-                    fileEntries.Add(fileEntry);
+                    fileEntries.Add((fileEntry, Activity.Current?.Id));
                     logger.ExtractionFailed(request.FilePath, ex);
                     result = "failed";
                 }
@@ -126,7 +122,15 @@ public class TextExtractService(
                 LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
                     new KeyValuePair<string, object?>("pipeline.stage", "textextract"));
             }
-        );
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        var fileEntryList = fileEntries.Select(x => x.Entry).ToList();
 
         using (var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
@@ -134,7 +138,7 @@ public class TextExtractService(
             await strategy.ExecuteAsync(async () =>
             {
                 await dbContext.BulkUpdateAsync(
-                    fileEntries.ToList(),
+                    fileEntryList,
                     new BulkConfig
                     {
                         PropertiesToInclude =
@@ -148,18 +152,17 @@ public class TextExtractService(
             });
         }
 
-        var extracted = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.TextExtracted);
-        var empty = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.EmptyContent);
-        var notSupported = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.NotSupportedFile);
-        var failed = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.TextExtractionFailed);
+        var extracted = fileEntryList.Count(e => e.ProcessStatus == FileProcessStatus.TextExtracted);
+        var empty = fileEntryList.Count(e => e.ProcessStatus == FileProcessStatus.EmptyContent);
+        var notSupported = fileEntryList.Count(e => e.ProcessStatus == FileProcessStatus.NotSupportedFile);
+        var failed = fileEntryList.Count(e => e.ProcessStatus == FileProcessStatus.TextExtractionFailed);
 
         logger.TextExtractFinished(extracted, empty, notSupported, failed);
 
         if (extracted > 0)
         {
             logger.StageHandoff(extracted, "FileClassify");
-            var traceParent = TracingHelper.CaptureTraceParent();
-            foreach (var entry in fileEntries.Where(e => e.ProcessStatus == FileProcessStatus.TextExtracted))
+            foreach (var (entry, traceParent) in fileEntries.Where(e => e.Entry.ProcessStatus == FileProcessStatus.TextExtracted))
             {
                 await fileClassifyChannel.Writer.WriteAsync(
                     new FileClassifyRequest(entry.Id, traceParent),
