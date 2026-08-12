@@ -1,3 +1,5 @@
+using RapidOcrNet;
+
 namespace Lore.Core.TextExtractors;
 
 public interface ITextExtractorFactory
@@ -5,7 +7,7 @@ public interface ITextExtractorFactory
     ITextExtractor GetExtractor(string filePath);
 }
 
-public class TextExtractorFactory : ITextExtractorFactory
+public class TextExtractorFactory(RapidOcr rapidOcr) : ITextExtractorFactory
 {
     public ITextExtractor GetExtractor(string filePath)
     {
@@ -16,7 +18,7 @@ public class TextExtractorFactory : ITextExtractorFactory
             ".txt" or ".log" or ".csv" or ".md" or ".markdown" or ".sql" or ".css" =>
                 new PlainTextExtractor(),
             ".json" or ".jsonl" or ".ndjson" or ".gdoc" or ".gsheet" => new JsonExtractor(),
-            ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" => new VisionExtractor(),
+            ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" => new VisionExtractor(rapidOcr),
             ".docx" or ".docm" or ".dotx" or ".dotm" => new DocxExtractor(),
             ".doc" => new DocExtractor(),
             ".rtf" => new RtfExtractor(),

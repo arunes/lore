@@ -6,11 +6,34 @@ using Lore.Core.Services;
 using Lore.Core.TextExtractors;
 using SmartComponents.LocalEmbeddings;
 using Lore.Common.Models;
+using RapidOcrNet;
+using Microsoft.Extensions.Hosting;
 
 namespace Lore.Core;
 
 public static class ServiceHelpers
 {
+    public static IServiceCollection AddOCRServices(this IServiceCollection services)
+    {
+
+        return services.AddSingleton(sp =>
+        {
+            var env = sp.GetRequiredService<IHostEnvironment>();
+            //var modelsPath = Path.Combine(env.ContentRootPath, "models");
+            var modelsPath = "/home/arunes/repos/lore/Lore.Core/bin/Debug/net10.0/models/v5";
+
+            var ocr = new RapidOcr();
+            ocr.InitModels(
+                detPath: Path.Combine(modelsPath, "ch_PP-OCRv5_mobile_det.onnx"),
+                clsPath: Path.Combine(modelsPath, "ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx"),
+                recPath: Path.Combine(modelsPath, "latin_PP-OCRv5_rec_mobile_infer.onnx"),
+                keysPath: Path.Combine(modelsPath, "ppocrv5_latin_dict.txt")
+            );
+
+            return ocr;
+        });
+    }
+
     public static IServiceCollection AddAgenticServices(this IServiceCollection services)
     {
         return services

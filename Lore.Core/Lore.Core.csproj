@@ -11,6 +11,7 @@
     <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="RapidOcrNet" Version="3.0.0" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.10" />
   </ItemGroup>
 

@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder();
 builder.WebHost.UseUrls($"https://*:{port}");
 builder.Services.AddOpenApi()
             .AddLoreServices()
+            .AddOCRServices()
             .AddAgenticServices()
             .AddLoreProcessors()
             .AddDataServices()

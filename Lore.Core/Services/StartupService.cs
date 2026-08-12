@@ -26,10 +26,18 @@ public class StartupService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+
         await userSettings.InitializeAsync(stoppingToken);
         await embeddingCache.InitializeAsync(stoppingToken);
-        await ResumeFiles(stoppingToken);
-        await WatchDirectories(stoppingToken);
+
+        await fileArrivalChannel.Writer.WriteAsync(
+            new FileArrivalRequest("/home/arunes/downloads/ai200cert.png"), stoppingToken);
+
+        await fileArrivalChannel.Writer.WriteAsync(
+            new FileArrivalRequest("/home/arunes/downloads/ai200cert.png"), stoppingToken);
+
+        //await ResumeFiles(stoppingToken);
+        //await WatchDirectories(stoppingToken);
     }
 
     private async Task WatchDirectories(CancellationToken cancellationToken)
