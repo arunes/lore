@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Data;
 using Lore.Data.Models;
@@ -37,10 +38,7 @@ public class FileClassifyService(
         CancellationToken cancellationToken
     )
     {
-        logger.LogInformation(
-            "Starting FileClassify process for {TotalFiles} files",
-            requests.Count
-        );
+        logger.ClassifyStarted(requests.Count);
 
         var incomingIds = requests.Select(req => req.FileId).Distinct().ToList();
         Dictionary<int, FileInformation> fileEntryContents;
@@ -76,10 +74,7 @@ public class FileClassifyService(
             {
                 if (!fileEntryContents.TryGetValue(request.FileId, out var fileInfo))
                 {
-                    logger.LogWarning(
-                        "File ID {FileId} not found or empty. Skipping classification.",
-                        request.FileId
-                    );
+                    logger.ClassifyFileMissing(request.FileId);
                     return;
                 }
 
@@ -108,11 +103,25 @@ public class FileClassifyService(
                     fileEntry.PrimaryCategoryId = primaryCategory?.Id;
                     fileEntry.DocumentTypeId = documentType?.Id;
                     fileEntry.ProcessStatus = FileProcessStatus.Classified;
+
+                    if (primaryCategory == null && documentType == null)
+                    {
+                        logger.NoCategoryMatched(request.FileId);
+                    }
+                    else
+                    {
+                        logger.FileClassified(
+                            request.FileId,
+                            fileInfo.Name,
+                            primaryCategory?.Name ?? "none",
+                            documentType?.Name ?? "none"
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.ClassificationFailed;
-                    logger.LogError(ex, "Failed to classify File ID {FileId}", request.FileId);
+                    logger.ClassifyFailed(request.FileId, ex);
                 }
 
                 fileEntries.Add(fileEntry);
@@ -124,7 +133,6 @@ public class FileClassifyService(
             var strategy = dbContext.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
-                // 1. Group classified files by Category and Type pair
                 var classifiedGroups = fileEntries
                     .Where(e => e.ProcessStatus == FileProcessStatus.Classified)
                     .GroupBy(e => new { e.PrimaryCategoryId, e.DocumentTypeId });
@@ -167,8 +175,11 @@ public class FileClassifyService(
             });
         }
 
-        logger.LogInformation("Classification finished for {Count} files.", fileEntries.Count);
+        var classified = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.Classified);
+        var failed = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.ClassificationFailed);
+        logger.ClassifyFinished(classified, failed);
 
+        logger.StageHandoff(fileEntries.Count, "Chunking");
         foreach (var entry in fileEntries)
         {
             await chunkingChannel.Writer.WriteAsync(

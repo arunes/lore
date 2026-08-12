@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 using NPOI.HWPF;
 using NPOI.HWPF.Extractor;
 
@@ -6,6 +8,13 @@ namespace Lore.Core.TextExtractors;
 [SupportedExtensions(".doc")]
 public class DocExtractor : ITextExtractor
 {
+    private readonly ILogger<DocExtractor> _logger;
+
+    public DocExtractor(ILogger<DocExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<string?> ExtractTextAsync(
         string filePath,
         CancellationToken cancellationToken = default
@@ -34,8 +43,9 @@ public class DocExtractor : ITextExtractor
 
             return string.IsNullOrWhiteSpace(cleanText) ? null : cleanText;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.ExtractionWarning(filePath, "doc", ex);
             return null;
         }
     }

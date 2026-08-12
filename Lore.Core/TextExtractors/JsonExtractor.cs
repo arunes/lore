@@ -1,11 +1,20 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.TextExtractors;
 
 [SupportedExtensions(".json", ".jsonl", ".ndjson", ".gdoc", ".gsheet")]
 public class JsonExtractor : ITextExtractor
 {
+    private readonly ILogger<JsonExtractor> _logger;
+
+    public JsonExtractor(ILogger<JsonExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<string?> ExtractTextAsync(
         string filePath,
         CancellationToken cancellationToken = default
@@ -24,8 +33,9 @@ public class JsonExtractor : ITextExtractor
 
             return sb.ToString();
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            _logger.ExtractionWarning(filePath, "json", ex);
             return null;
         }
     }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.AI;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Lore.Common.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Lore.Common.Extensions;
+using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Core.Settings;
 
@@ -27,19 +29,30 @@ public class TraditionalRAGService(
     )
     {
         var chatId = request.ChatId ?? Guid.NewGuid();
+        var chatSid = chatId.ToString("N")[..8];
+
+        logger.ChatStarted(chatSid, "Traditional");
+
         var chatClient = CreateChatClient();
 
         memoryCache.TryGetValue(GetChatCacheKey(chatId), out List<ChatMessage>? conversationHistory);
         conversationHistory ??= [new(ChatRole.System, userSettings.GetSetting<string>(UserSettingsType.LoreChatTraditionalSystemPrompt))];
 
-        var query = await GetRetrievalQueryAsync(chatClient, conversationHistory, request, cancellationToken);
+        var query = await GetRetrievalQueryAsync(chatClient, conversationHistory, request, chatSid, cancellationToken);
         var documentChunkIds = query.NeedsRetrieval ? await searchTools.RetrieveDocumentChunksAsync(query, cancellationToken) : [];
+
+        if (query.NeedsRetrieval && documentChunkIds.Count == 0)
+        {
+            logger.NoRelevantChunks(chatSid);
+        }
+
         var userMessage = await BuildCurrentUserMessageAsync(request.Prompt, query.NeedsRetrieval, documentChunkIds, cancellationToken);
 
         var responseStream = StreamFromLLMAsync(
             chatClient,
             conversationHistory,
             chatId,
+            chatSid,
             userMessage,
             cancellationToken
         );
@@ -101,10 +114,12 @@ public class TraditionalRAGService(
         IChatClient chatClient,
         List<ChatMessage> messageHistory,
         Guid chatId,
+        string chatSid,
         string userMessage,
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        var sw = Stopwatch.StartNew();
         var currentTurnMessages = new List<ChatMessage>(messageHistory)
         {
             new(ChatRole.User, userMessage)
@@ -130,7 +145,7 @@ public class TraditionalRAGService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to initialize LLM streaming response.");
+            logger.StreamInitFailed(chatSid, ex);
             yield break;
         }
 
@@ -144,6 +159,9 @@ public class TraditionalRAGService(
             }
         }
 
+        sw.Stop();
+        logger.StreamedSummary(chatSid, llmResponse.Length, sw.ElapsedMilliseconds);
+
         currentTurnMessages.Add(new ChatMessage(ChatRole.Assistant, llmResponse.ToString()));
         memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));
     }
@@ -152,6 +170,7 @@ public class TraditionalRAGService(
         IChatClient chatClient,
         List<ChatMessage> conversationHistory,
         LoreChatRequest request,
+        string chatSid,
         CancellationToken cancellationToken)
     {
         var defaultQuery = new RetrievalQuery
@@ -203,11 +222,13 @@ public class TraditionalRAGService(
 
             var cleanText = completion.Text.CleanLLMJsonOutput();
             var response = cleanText.DeserializeJson<RetrievalQuery>();
-            return response ?? defaultQuery;
+            var finalQuery = response ?? defaultQuery;
+            logger.RetrievalDecision(chatSid, finalQuery.NeedsRetrieval, finalQuery.SearchQuery?.Length ?? 0, finalQuery.FTSTerms.Count);
+            return finalQuery;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to get retrieval query using LLM. Falling back to raw query.");
+            logger.RetrievalQueryFallback(chatSid, ex);
             return defaultQuery;
         }
     }

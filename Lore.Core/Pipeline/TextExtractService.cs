@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Core.TextExtractors;
 using Lore.Data;
@@ -29,10 +30,7 @@ public class TextExtractService(
         CancellationToken cancellationToken
     )
     {
-        logger.LogInformation(
-            "Starting TextExtractor process for {TotalFiles} files",
-            requests.Count
-        );
+        logger.TextExtractStarted(requests.Count);
 
         var fileEntries = new ConcurrentBag<FileEntry>();
         var parallelOptions = new ParallelOptions
@@ -59,10 +57,7 @@ public class TextExtractService(
             {
                 if (!fileEntryIds.TryGetValue(request.FilePath, out var fileId))
                 {
-                    logger.LogError(
-                        "File path {FilePath} not found in database. Skipping text extraction",
-                        request.FilePath
-                    );
+                    logger.FileMissingInDb(request.FilePath);
                     return;
                 }
 
@@ -86,29 +81,29 @@ public class TextExtractService(
                     if (string.IsNullOrWhiteSpace(cleanedText))
                     {
                         fileEntry.ProcessStatus = FileProcessStatus.EmptyContent;
+                        logger.ExtractionEmpty(request.FilePath);
                     }
                     else
                     {
                         fileEntry.ProcessStatus = FileProcessStatus.TextExtracted;
                         fileEntry.Content = cleanedText;
+                        logger.ExtractionOutcome(request.FilePath, extractor.GetType().Name, cleanedText.Length);
                     }
 
                     fileEntries.Add(fileEntry);
                 }
-                catch (NotSupportedException nex)
+                catch (NotSupportedException)
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.NotSupportedFile;
                     fileEntries.Add(fileEntry);
-
-                    logger.LogWarning(nex.Message);
-                    return;
+                    logger.FileNotSupported(request.FilePath, Path.GetExtension(request.FilePath));
                 }
                 catch (Exception ex)
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.TextExtractionFailed;
                     fileEntry.Content = ex.Message;
                     fileEntries.Add(fileEntry);
-                    return;
+                    logger.ExtractionFailed(request.FilePath, ex);
                 }
             }
         );
@@ -133,17 +128,23 @@ public class TextExtractService(
             });
         }
 
-        logger.LogInformation("TextExtractor process finished");
-        var extractedFiles = fileEntries.Where(fl =>
-            fl.ProcessStatus == FileProcessStatus.TextExtracted
-        );
-        
-        foreach (var entry in extractedFiles)
+        var extracted = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.TextExtracted);
+        var empty = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.EmptyContent);
+        var notSupported = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.NotSupportedFile);
+        var failed = fileEntries.Count(e => e.ProcessStatus == FileProcessStatus.TextExtractionFailed);
+
+        logger.TextExtractFinished(extracted, empty, notSupported, failed);
+
+        if (extracted > 0)
         {
-            await fileClassifyChannel.Writer.WriteAsync(
-                new FileClassifyRequest(entry.Id),
-                cancellationToken
-            );
+            logger.StageHandoff(extracted, "FileClassify");
+            foreach (var entry in fileEntries.Where(e => e.ProcessStatus == FileProcessStatus.TextExtracted))
+            {
+                await fileClassifyChannel.Writer.WriteAsync(
+                    new FileClassifyRequest(entry.Id),
+                    cancellationToken
+                );
+            }
         }
     }
 }

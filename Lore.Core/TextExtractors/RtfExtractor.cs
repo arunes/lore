@@ -1,11 +1,19 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.TextExtractors;
 
 [SupportedExtensions(".rtf")]
 public partial class RtfExtractor : ITextExtractor
 {
-    // Regex to remove RTF formatting controls and groups
+    private readonly ILogger<RtfExtractor> _logger;
+
+    public RtfExtractor(ILogger<RtfExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     [GeneratedRegex(@"\{\*?\\[^{}]+}|[{}]|\\\w+\b ?")]
     private static partial Regex RtfControlRegex();
 
@@ -22,12 +30,12 @@ public partial class RtfExtractor : ITextExtractor
                 return null;
             }
 
-            // Strip RTF control sequences
             var plainText = RtfControlRegex().Replace(rtfContent, string.Empty);
             return plainText.Trim();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.ExtractionWarning(filePath, "rtf", ex);
             return null;
         }
     }

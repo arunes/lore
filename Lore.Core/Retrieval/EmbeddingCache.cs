@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 using Lore.Data;
 using Lore.Data.Models;
 using SmartComponents.Inference;
@@ -6,7 +8,7 @@ using SmartComponents.LocalEmbeddings;
 
 namespace Lore.Core.Retrieval;
 
-public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder)
+public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder, ILogger<EmbeddingCache> logger)
 {
     public record CategoryVector<T>(int Id, string Name, ReadOnlyMemory<float> Vector);
 
@@ -64,6 +66,8 @@ public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder)
             var embedding = embedder.Embed(dt.Keywords);
             DocumentTypes.Add((dt, embedding));
         }
+
+        logger.EmbeddingCacheLoaded(categories.Count, docTypes.Count);
     }
 
     private static SimilarityQuery GetSimilarityQuery(string input) =>

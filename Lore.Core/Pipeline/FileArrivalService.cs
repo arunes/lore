@@ -4,6 +4,7 @@ using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Common.Extensions;
+using Lore.Core.Logging;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -27,13 +28,12 @@ public class FileArrivalService(
         CancellationToken cancellationToken
     )
     {
-        logger.LogInformation(
-            "Starting FileArrival process for {TotalFiles} files",
-            requests.Count
-        );
+        logger.FileArrivalStarted(requests.Count);
 
         var fileEntries = new ConcurrentBag<FileEntry>();
         var filesToDelete = new ConcurrentBag<string>();
+        var unchangedCount = 0;
+        var skippedCount = 0;
 
         var parallelOptions = new ParallelOptions
         {
@@ -66,33 +66,30 @@ public class FileArrivalService(
                 if (!fileInfo.Exists)
                 {
                     if (existingFiles.ContainsKey(request.FilePath))
-                    { // file is deleted
+                    {
                         filesToDelete.Add(request.FilePath);
+                        logger.FileDeleted(request.FilePath);
                         return;
                     }
 
-                    logger.LogWarning(
-                        "File '{FilePath}' can't be inspected, skipping",
-                        request.FilePath
-                    );
+                    Interlocked.Increment(ref skippedCount);
+                    logger.LogWarning("File '{FilePath}' not found on disk, skipping", request.FilePath);
                     return;
                 }
 
-                // If file exists in db and hasn't been modified since, skip hashing
                 if (
                     existingFiles.TryGetValue(fileInfo.FullName, out var lastDbWriteTime)
                     && fileInfo.LastWriteTimeUtc == lastDbWriteTime
                 )
                 {
-                    logger.LogInformation(
-                        "File '{FilePath}' has not changed, skipping",
-                        fileInfo.FullName
-                    );
+                    Interlocked.Increment(ref unchangedCount);
+                    logger.FileUnchanged(fileInfo.FullName);
                     return;
                 }
 
                 using var fileStream = File.OpenRead(request.FilePath);
                 var fileHash = await fileStream.ComputeSha256HexAsync();
+                logger.FileHashed(request.FilePath, fileHash.Length);
                 fileEntries.Add(
                     new FileEntry
                     {
@@ -137,13 +134,18 @@ public class FileArrivalService(
             });
         }
 
-        logger.LogInformation("FileArrival process finished, processed {FileCount} records", fileEntries.Count);
-        foreach (var entry in fileEntries)
+        logger.FileArrivalFinished(fileEntries.Count, unchangedCount, filesToDelete.Count, skippedCount);
+
+        if (fileEntries.Count > 0)
         {
-            await textExtractChannel.Writer.WriteAsync(
-                new TextExtractRequest(entry.Path),
-                cancellationToken
-            );
+            logger.StageHandoff(fileEntries.Count, "TextExtract");
+            foreach (var entry in fileEntries)
+            {
+                await textExtractChannel.Writer.WriteAsync(
+                    new TextExtractRequest(entry.Path),
+                    cancellationToken
+                );
+            }
         }
     }
 }

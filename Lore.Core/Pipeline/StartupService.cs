@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Core.Settings;
 using Lore.Data;
@@ -12,7 +13,7 @@ namespace Lore.Core.Pipeline;
 
 public class StartupService(
     ILogger<StartupService> logger,
-    ILogger<DirectoryWatcher> loreWatcherLogger,
+    ILogger<DirectoryWatcher> directoryWatcherLogger,
     IUserSettingsService userSettings,
     EmbeddingCache embeddingCache,
     LoreDbContext db,
@@ -27,12 +28,14 @@ public class StartupService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-
         await userSettings.InitializeAsync(stoppingToken);
         await embeddingCache.InitializeAsync(stoppingToken);
 
+        logger.StartupComplete();
+
         await fileArrivalChannel.Writer.WriteAsync(
             new FileArrivalRequest("/home/arunes/downloads/ai200cert3.png"), stoppingToken);
+        logger.SeededTestFile("/home/arunes/downloads/ai200cert3.png");
 
         //await ResumeFiles(stoppingToken);
         //await WatchDirectories(stoppingToken);
@@ -51,11 +54,12 @@ public class StartupService(
         {
             if (!Directory.Exists(fileSource.Path))
             {
-                logger.LogWarning("{Directory} does not exists, skipping.", fileSource.Path);
+                logger.DirectoryMissing(fileSource.Path);
                 continue;
             }
 
-            var watcher = new DirectoryWatcher(loreWatcherLogger, fileArrivalChannel, cancellationToken);
+            logger.WatchDirectoryStarted(fileSource.Path, fileSource.ExcludePattern ?? "");
+            var watcher = new DirectoryWatcher(directoryWatcherLogger, fileArrivalChannel, cancellationToken);
             tasks.Add(watcher.StartWatchingAsync(fileSource.Path, fileSource.ExcludePattern));
         }
 

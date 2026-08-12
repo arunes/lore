@@ -1,3 +1,4 @@
+using Lore.Data.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,19 +12,19 @@ public class DbInitializerHostedService(
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Initializing SQLite Database and vector extensions...");
+        logger.DbInitializing();
         using var dbContext = await dbContextFactory.CreateVectorDbContextAsync(cancellationToken);
 
-        // Ensure EF migrations are applied
         await dbContext.Database.MigrateAsync(cancellationToken);
+        logger.MigrationsApplied();
 
-        // Ensure sqlite-vec virtual tables exist
         await dbContext.EnsureVectorTablesCreatedAsync(cancellationToken);
+        logger.VectorTablesEnsured();
 
-        // Ensure FTS tables exist
         await dbContext.EnsureFTSTablesCreatedAsync(cancellationToken);
+        logger.FtsTablesEnsured();
 
-        logger.LogInformation("Database vector tables initialized successfully.");
+        logger.DbInitialized();
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

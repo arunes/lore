@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 using Lore.Data;
 using Lore.Data.Models;
 using SmartComponents.LocalEmbeddings;
@@ -37,7 +38,7 @@ public class VectorizeService(
         CancellationToken cancellationToken
     )
     {
-        logger.LogInformation("Starting Vectorize process for {TotalFiles} files", requests.Count);
+        logger.VectorizeStarted(requests.Count);
 
         var incomingIds = requests.Select(req => req.FileId).Distinct().ToList();
         var fileChunkContents = await GetFileChunkContents(incomingIds, cancellationToken);
@@ -49,6 +50,7 @@ public class VectorizeService(
         };
 
         var vectorizedResults = new ConcurrentDictionary<int, List<ChunkVectorInformation>>();
+        var perFileDurations = new ConcurrentDictionary<int, long>();
 
         var sw = Stopwatch.StartNew();
         Parallel.ForEach(
@@ -56,27 +58,38 @@ public class VectorizeService(
             parallelOptions,
             fcc =>
             {
+                var fileSw = Stopwatch.StartNew();
                 vectorizedResults[fcc.Key] = GetVectorsForChunks(fcc.Value);
+                fileSw.Stop();
+                perFileDurations[fcc.Key] = fileSw.ElapsedMilliseconds;
             }
         );
 
         sw.Stop();
-        logger.LogWarning(
-            "All embeddings created for {TotalFiles} file, taking {TotalMilliseconds} ms.",
-            fileChunkContents.Count,
-            sw.ElapsedMilliseconds
-        );
+        logger.LogDebug("All embeddings created for {TotalFiles} files in {TotalMilliseconds}ms",
+            fileChunkContents.Count, sw.ElapsedMilliseconds);
+
+        foreach (var (fileId, chunks) in vectorizedResults)
+        {
+            perFileDurations.TryGetValue(fileId, out var durationMs);
+            logger.FileVectorized(fileId, chunks.Count, durationMs);
+        }
 
         await using var dbContext = await dbContextFactory.CreateVectorDbContextAsync(
             cancellationToken
         );
+
+        int totalVectorsWritten = 0;
 
         foreach (var (fileId, chunks) in vectorizedResults)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (chunks.Count == 0)
+            {
+                logger.ZeroVectorsWritten(fileId);
                 continue;
+            }
 
             await using var transaction = await dbContext.Database.BeginTransactionAsync(
                 cancellationToken
@@ -84,7 +97,6 @@ public class VectorizeService(
 
             try
             {
-                // Delete existing vectors using safe parameterized JSON expression
                 var chunkIds = chunks.Select(ch => ch.Id).ToList();
                 await dbContext.Database.ExecuteSqlRawAsync(
                     "DELETE FROM vec_file_chunks WHERE chunk_id IN (SELECT value FROM json_each({0}));",
@@ -92,7 +104,6 @@ public class VectorizeService(
                     cancellationToken
                 );
 
-                // Parameterized INSERT statements in batches
                 foreach (var chunkBatch in chunks.Chunk(25))
                 {
                     var sqlBuilder = new StringBuilder(
@@ -129,26 +140,19 @@ public class VectorizeService(
                     );
 
                 await transaction.CommitAsync(cancellationToken);
+                totalVectorsWritten += chunks.Count;
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Failed writing vector embeddings to SQLite for File ID {FileId}",
-                    fileId
-                );
+                logger.VectorWriteFailed(fileId, ex);
             }
         }
 
-        logger.LogInformation(
-            "Vectorizing process finished, processed {FileCount} records",
-            requests.Count
-        );
+        logger.VectorizeFinished(vectorizedResults.Count, totalVectorsWritten);
     }
 
     private List<ChunkVectorInformation> GetVectorsForChunks(List<ChunkInformation> chunks)
     {
-        var sw = Stopwatch.StartNew();
         var inputs = chunks
             .Select(ch =>
             {
@@ -170,19 +174,9 @@ public class VectorizeService(
             .ToList();
 
         var embeddings = embedder.EmbedRange(inputs, x => x.Text);
-        var result = embeddings
+        return embeddings
             .Select(x => new ChunkVectorInformation(x.Item.Chunk.Id, x.Embedding.Values))
             .ToList();
-
-        sw.Stop();
-
-        logger.LogWarning(
-            "Embeddings created for {TotalChunks} chunks, taking {TotalMilliseconds} ms.",
-            chunks.Count,
-            sw.ElapsedMilliseconds
-        );
-
-        return result;
     }
 
     private async Task<Dictionary<int, List<ChunkInformation>>> GetFileChunkContents(

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Lore.Common.Extensions;
 using Lore.Common.Models;
+using Lore.Core.Logging;
 using Lore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,8 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
 
             _settings[settingKey] = setting.Value;
         }
+
+        logger.SettingsLoaded(_settings.Count);
     }
 
     public static T ConvertValue<T>(object value)
@@ -54,7 +57,6 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
                 return (T)Enum.Parse(targetType, stringValue, ignoreCase: true);
             }
 
-            // Handles converting numeric types (e.g., int, byte) to the Enum type
             return (T)Enum.ToObject(targetType, value);
         }
 

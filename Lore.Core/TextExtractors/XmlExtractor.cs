@@ -1,6 +1,8 @@
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.TextExtractors;
 
@@ -12,6 +14,13 @@ namespace Lore.Core.TextExtractors;
     ".csproj", ".vbproj")]
 public class XmlExtractor : ITextExtractor
 {
+    private readonly ILogger<XmlExtractor> _logger;
+
+    public XmlExtractor(ILogger<XmlExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     public Task<string?> ExtractTextAsync(
         string filePath,
         CancellationToken cancellationToken = default
@@ -32,9 +41,9 @@ public class XmlExtractor : ITextExtractor
 
             return Task.FromResult<string?>(sb.ToString());
         }
-        catch (XmlException)
+        catch (XmlException ex)
         {
-            // Invalid XML structure
+            _logger.ExtractionWarning(filePath, "xml", ex);
             return Task.FromResult<string?>(null);
         }
     }
@@ -48,11 +57,9 @@ public class XmlExtractor : ITextExtractor
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Build path: root.child.subchild
         var elementName = element.Name.LocalName;
         var path = string.IsNullOrEmpty(currentPath) ? elementName : $"{currentPath}.{elementName}";
 
-        // 1. Process Attributes (e.g. <product id="101"> -> product.id: 101)
         foreach (var attr in element.Attributes())
         {
             if (!string.IsNullOrWhiteSpace(attr.Value))
@@ -61,7 +68,6 @@ public class XmlExtractor : ITextExtractor
             }
         }
 
-        // 2. Check if this node has direct text content (Leaf Node)
         var textNodes = element
             .Nodes()
             .OfType<XText>()
@@ -73,12 +79,10 @@ public class XmlExtractor : ITextExtractor
 
         if (textNodes.Count > 0 && childElements.Count == 0)
         {
-            // Leaf element with value
             var textValue = string.Join(" ", textNodes);
             sb.AppendLine($"{path}: {textValue}");
         }
 
-        // 3. Recurse into child elements
         foreach (var child in childElements)
         {
             FlattenElement(child, path, sb, cancellationToken);

@@ -4,6 +4,7 @@ using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Text;
+using Lore.Core.Logging;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -25,7 +26,7 @@ public class ChunkingService(
         CancellationToken cancellationToken
     )
     {
-        logger.LogInformation("Starting Chunking process for {TotalFiles} files", requests.Count);
+        logger.ChunkingStarted(requests.Count);
         var fileChunkEntries = new ConcurrentBag<FileEntryChunk>();
         var parallelOptions = new ParallelOptions
         {
@@ -44,6 +45,8 @@ public class ChunkingService(
                 .ToDictionaryAsync(fl => fl.Id, fl => fl.Content, cancellationToken);
         }
 
+        var chunkedFiles = new ConcurrentDictionary<int, int>();
+
         await Parallel.ForEachAsync(
             requests,
             parallelOptions,
@@ -51,14 +54,13 @@ public class ChunkingService(
             {
                 if (!fileEntryContents.TryGetValue(request.FileId, out var fileContent))
                 {
-                    logger.LogWarning(
-                        "File ID {FileId} not found or empty. Skipping chunking.",
-                        request.FileId
-                    );
+                    logger.ChunkingFileMissing(request.FileId);
                     return;
                 }
 
                 var chunks = ChunkText(fileContent!);
+                chunkedFiles.TryAdd(request.FileId, chunks.Count);
+
                 for (int i = 0; i < chunks.Count; i++)
                 {
                     fileChunkEntries.Add(
@@ -72,6 +74,11 @@ public class ChunkingService(
                 }
             }
         );
+
+        foreach (var (fileId, chunkCount) in chunkedFiles)
+        {
+            logger.FileChunked(fileId, chunkCount, 0);
+        }
 
         var distinctFileEntryIds = fileChunkEntries.Select(ce => ce.FileEntryId).Distinct();
         using (var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken))
@@ -93,17 +100,19 @@ public class ChunkingService(
             });
         }
 
-        logger.LogInformation(
-            "Chunking process finished, processed {FileCount} records",
-            fileChunkEntries.Count
-        );
+        var fileCount = distinctFileEntryIds.Count();
+        logger.ChunkingFinished(fileCount, fileChunkEntries.Count);
 
-        foreach (var fileEntryId in distinctFileEntryIds)
+        if (fileCount > 0)
         {
-            await vectorizeChannel.Writer.WriteAsync(
-                new VectorizeRequest(fileEntryId),
-                cancellationToken
-            );
+            logger.StageHandoff(fileCount, "Vectorize");
+            foreach (var fileEntryId in distinctFileEntryIds)
+            {
+                await vectorizeChannel.Writer.WriteAsync(
+                    new VectorizeRequest(fileEntryId),
+                    cancellationToken
+                );
+            }
         }
     }
 

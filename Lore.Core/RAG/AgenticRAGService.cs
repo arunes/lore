@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Lore.Common.Models;
+using Lore.Core.Logging;
 using Lore.Core.Settings;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -22,6 +24,9 @@ public class AgenticRAGService(
     public async Task<LoreChatResponse> ChatAsync(LoreChatRequest request, CancellationToken cancellationToken = default)
     {
         var chatId = request.ChatId ?? Guid.NewGuid();
+        var chatSid = chatId.ToString("N")[..8];
+
+        logger.ChatStarted(chatSid, "Agentic");
 
         memoryCache.TryGetValue(GetChatCacheKey(chatId), out ChatHistory? conversationHistory);
         conversationHistory ??= new ChatHistory(
@@ -33,6 +38,7 @@ public class AgenticRAGService(
             kernel,
             conversationHistory,
             chatId,
+            chatSid,
             request.Prompt,
             cancellationToken
         );
@@ -44,10 +50,12 @@ public class AgenticRAGService(
         Kernel kernel,
         ChatHistory messageHistory,
         Guid chatId,
+        string chatSid,
         string userMessage,
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        var sw = Stopwatch.StartNew();
         var currentTurnMessages = new ChatHistory(messageHistory);
         currentTurnMessages.AddUserMessage(userMessage);
 
@@ -61,11 +69,6 @@ public class AgenticRAGService(
                 Temperature = userSettings.GetSetting<float>(UserSettingsType.SearchChatTemperature)
             };
 
-            var arguments = new KernelArguments(executionSettings)
-            {
-                ["chatHistory"] = currentTurnMessages
-            };
-
             responseStream = chatCompletion.GetStreamingChatMessageContentsAsync(
                 currentTurnMessages,
                 executionSettings,
@@ -75,7 +78,7 @@ public class AgenticRAGService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to initialize LLM streaming response.");
+            logger.StreamInitFailed(chatSid, ex);
             yield break;
         }
 
@@ -88,6 +91,9 @@ public class AgenticRAGService(
                 yield return update.Content;
             }
         }
+
+        sw.Stop();
+        logger.StreamedSummary(chatSid, llmResponse.Length, sw.ElapsedMilliseconds);
 
         currentTurnMessages.AddAssistantMessage(llmResponse.ToString());
         memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));

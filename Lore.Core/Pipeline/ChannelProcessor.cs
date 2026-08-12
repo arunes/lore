@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.Pipeline;
 
@@ -34,12 +35,13 @@ public class ChannelProcessor<TRequest>(
             }
             catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
             {
-                // Timeout! return the batch if any records
             }
 
             if (batch.Count > 0)
             {
+                var sw = Stopwatch.StartNew();
                 await service.ProcessBatchAsync(batch, stoppingToken);
+                logger.BatchDrained(batch.Count, typeof(TRequest).Name, sw.ElapsedMilliseconds);
                 batch.Clear();
             }
         }

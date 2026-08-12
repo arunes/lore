@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Lore.Common.Models;
+using Lore.Core.Logging;
 using Lore.Core.Settings;
 using Lore.Data;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +18,10 @@ public class RetrievalService(
     IDbContextFactory<LoreDbContext> dbContextFactory
 ) : IRetrievalService
 {
-    public async Task<List<DocumentChunkFile>> GetChunkContentsAsync(List<int> documentChunkIds, CancellationToken cancellationToken)
+    public async Task<List<DocumentChunkFile>> GetChunkContentsAsync(
+        List<int> documentChunkIds,
+        CancellationToken cancellationToken
+    )
     {
         if (documentChunkIds.Count == 0)
         {
@@ -63,10 +68,11 @@ public class RetrievalService(
     }
 
     public async Task<List<int>> RetrieveDocumentChunksAsync(
-    RetrievalQuery query,
-    CancellationToken cancellationToken
-)
+        RetrievalQuery query,
+        CancellationToken cancellationToken
+    )
     {
+        var sw = Stopwatch.StartNew();
         var formattedFts = FormatFtsQuery(query.FTSTerms);
         var cleanedPassage = CleanSearchQuery(query.SearchQuery);
         var maxNumberSearchResults = userSettings.GetSetting<int>(UserSettingsType.MaxNumberSearchResults);
@@ -110,15 +116,17 @@ public class RetrievalService(
             }
         }
 
-        // Apply weights per retrieval stream
         ProcessStream(ftsResults, userSettings.GetSetting<float>(UserSettingsType.SearchFTSWeight));
         ProcessStream(vectorResults, userSettings.GetSetting<float>(UserSettingsType.SearchVectorWeight));
 
-        return rrfScores
+        var fused = rrfScores
             .OrderByDescending(kvp => kvp.Value)
             .Select(kvp => kvp.Key)
             .Take(maxNumberSearchResults)
             .ToList();
+
+        logger.RetrievalResult(ftsResults.Count, vectorResults.Count, fused.Count, sw.ElapsedMilliseconds);
+        return fused;
     }
 
     private static string CleanSearchQuery(string? query)
@@ -152,8 +160,6 @@ public class RetrievalService(
 
         static string EscapeFts5Phrase(string value)
         {
-            // FTS5 phrase syntax uses double quotes.
-            // A literal double quote inside the phrase is escaped by doubling it.
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
 

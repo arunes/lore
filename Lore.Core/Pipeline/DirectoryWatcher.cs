@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.Pipeline;
 
@@ -28,7 +29,7 @@ public class DirectoryWatcher(
             var extension = Path.GetExtension(path);
             if (_excludedExtensions.Contains(extension))
             {
-                logger.LogInformation("Skipping {Path} because it is ignored.", path);
+                logger.WatcherIgnored(path);
                 continue;
             }
 
@@ -37,7 +38,7 @@ public class DirectoryWatcher(
     }
 
     private void OnError(object sender, ErrorEventArgs e) =>
-        logger.LogError(e.GetException(), "Error occurred on file watcher");
+        logger.WatcherError(e.GetException());
 
     public async Task StartWatchingAsync(string directory, string? excludePattern)
     {
@@ -68,7 +69,6 @@ public class DirectoryWatcher(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // expected shutdown
         }
         finally
         {
@@ -107,7 +107,6 @@ public class DirectoryWatcher(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // expected shutdown
         }
     }
 }

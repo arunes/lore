@@ -1,12 +1,21 @@
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+using Lore.Core.Logging;
 
 namespace Lore.Core.TextExtractors;
 
 [SupportedExtensions(".odt")]
 public class OdtExtractor : ITextExtractor
 {
+    private readonly ILogger<OdtExtractor> _logger;
+
+    public OdtExtractor(ILogger<OdtExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<string?> ExtractTextAsync(
         string filePath,
         CancellationToken cancellationToken = default
@@ -28,7 +37,6 @@ public class OdtExtractor : ITextExtractor
 
             var sb = new StringBuilder();
 
-            // Extract all text nodes within paragraph/heading nodes
             foreach (var element in doc.Descendants())
             {
                 if (element.Name.LocalName is "p" or "h")
@@ -43,8 +51,9 @@ public class OdtExtractor : ITextExtractor
 
             return sb.ToString();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.ExtractionWarning(filePath, "odt", ex);
             return null;
         }
     }
