@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Core.Logging;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
 using SmartComponents.LocalEmbeddings;
@@ -59,9 +60,22 @@ public class VectorizeService(
             fcc =>
             {
                 var fileSw = Stopwatch.StartNew();
-                vectorizedResults[fcc.Key] = GetVectorsForChunks(fcc.Value);
+
+                var fileId = fcc.Key;
+                var traceParent = requests.FirstOrDefault(r => r.FileId == fileId)?.TraceParent;
+                using var activity = TracingHelper.StartStageSpan("vectorize", fileId.ToString(), traceParent);
+
+                vectorizedResults[fcc.Key] = GetVectorsForChunks(fcc.Value, activity);
+
                 fileSw.Stop();
                 perFileDurations[fcc.Key] = fileSw.ElapsedMilliseconds;
+
+                activity?.SetTag("file.vector_count", vectorizedResults[fcc.Key].Count);
+                LoreMetrics.PipelineFilesProcessed.Add(1,
+                    new KeyValuePair<string, object?>("pipeline.stage", "vectorize"),
+                    new KeyValuePair<string, object?>("result", "success"));
+                LoreMetrics.PipelineFileDuration.Record(fileSw.ElapsedMilliseconds,
+                    new KeyValuePair<string, object?>("pipeline.stage", "vectorize"));
             }
         );
 
@@ -151,7 +165,7 @@ public class VectorizeService(
         logger.VectorizeFinished(vectorizedResults.Count, totalVectorsWritten);
     }
 
-    private List<ChunkVectorInformation> GetVectorsForChunks(List<ChunkInformation> chunks)
+    private List<ChunkVectorInformation> GetVectorsForChunks(List<ChunkInformation> chunks, Activity? activity)
     {
         var inputs = chunks
             .Select(ch =>
@@ -173,7 +187,13 @@ public class VectorizeService(
             })
             .ToList();
 
+        var sw = Stopwatch.StartNew();
         var embeddings = embedder.EmbedRange(inputs, x => x.Text);
+        sw.Stop();
+
+        activity?.SetTag("embedding.count", inputs.Count);
+        activity?.SetTag("embedding.duration_ms", sw.ElapsedMilliseconds);
+
         return embeddings
             .Select(x => new ChunkVectorInformation(x.Item.Chunk.Id, x.Embedding.Values))
             .ToList();

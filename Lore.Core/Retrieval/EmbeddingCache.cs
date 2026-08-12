@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Core.Logging;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
 using SmartComponents.Inference;
@@ -51,6 +52,8 @@ public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder, ILo
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        using var activity = LoreActivitySource.Source.StartActivity("embedding/cache_init");
+
         var categories = await dbContext
             .PrimaryCategories.AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -66,6 +69,9 @@ public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder, ILo
             var embedding = embedder.Embed(dt.Keywords);
             DocumentTypes.Add((dt, embedding));
         }
+
+        activity?.SetTag("cache.categories", categories.Count);
+        activity?.SetTag("cache.document_types", docTypes.Count);
 
         logger.EmbeddingCacheLoaded(categories.Count, docTypes.Count);
     }

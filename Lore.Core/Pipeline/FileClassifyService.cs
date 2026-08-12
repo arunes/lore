@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Core.Logging;
 using Lore.Core.Retrieval;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -72,11 +74,15 @@ public class FileClassifyService(
             parallelOptions,
             async (request, ct) =>
             {
+                using var activity = TracingHelper.StartStageSpan("classify", request.FileId.ToString(), request.TraceParent);
+
                 if (!fileEntryContents.TryGetValue(request.FileId, out var fileInfo))
                 {
                     logger.ClassifyFileMissing(request.FileId);
                     return;
                 }
+
+                activity?.SetTag("file.path", fileInfo.Name);
 
                 var fileEntry = new FileEntry
                 {
@@ -88,6 +94,9 @@ public class FileClassifyService(
                     Extension = string.Empty,
                     Directory = string.Empty,
                 };
+
+                var sw = Stopwatch.StartNew();
+                string? result;
 
                 try
                 {
@@ -103,6 +112,10 @@ public class FileClassifyService(
                     fileEntry.PrimaryCategoryId = primaryCategory?.Id;
                     fileEntry.DocumentTypeId = documentType?.Id;
                     fileEntry.ProcessStatus = FileProcessStatus.Classified;
+                    result = "classified";
+
+                    activity?.SetTag("file.category", primaryCategory?.Name ?? "none");
+                    activity?.SetTag("file.doc_type", documentType?.Name ?? "none");
 
                     if (primaryCategory == null && documentType == null)
                     {
@@ -122,7 +135,15 @@ public class FileClassifyService(
                 {
                     fileEntry.ProcessStatus = FileProcessStatus.ClassificationFailed;
                     logger.ClassifyFailed(request.FileId, ex);
+                    result = "failed";
                 }
+
+                sw.Stop();
+                LoreMetrics.PipelineFilesProcessed.Add(1,
+                    new KeyValuePair<string, object?>("pipeline.stage", "classify"),
+                    new KeyValuePair<string, object?>("result", result));
+                LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                    new KeyValuePair<string, object?>("pipeline.stage", "classify"));
 
                 fileEntries.Add(fileEntry);
             }
@@ -180,10 +201,11 @@ public class FileClassifyService(
         logger.ClassifyFinished(classified, failed);
 
         logger.StageHandoff(fileEntries.Count, "Chunking");
+        var traceParent = TracingHelper.CaptureTraceParent();
         foreach (var entry in fileEntries)
         {
             await chunkingChannel.Writer.WriteAsync(
-                new ChunkingRequest(entry.Id),
+                new ChunkingRequest(entry.Id, traceParent),
                 cancellationToken
             );
         }

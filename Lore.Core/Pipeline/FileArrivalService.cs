@@ -1,10 +1,12 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Common.Extensions;
 using Lore.Core.Logging;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -62,6 +64,11 @@ public class FileArrivalService(
             parallelOptions,
             async (request, ct) =>
             {
+                using var activity = TracingHelper.StartStageSpan("arrival", request.FilePath, request.TraceParent);
+
+                var sw = Stopwatch.StartNew();
+                string? result = null;
+
                 var fileInfo = new FileInfo(request.FilePath);
                 if (!fileInfo.Exists)
                 {
@@ -69,11 +76,21 @@ public class FileArrivalService(
                     {
                         filesToDelete.Add(request.FilePath);
                         logger.FileDeleted(request.FilePath);
-                        return;
+                        result = "deleted";
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref skippedCount);
+                        logger.LogWarning("File '{FilePath}' not found on disk, skipping", request.FilePath);
+                        result = "skipped";
                     }
 
-                    Interlocked.Increment(ref skippedCount);
-                    logger.LogWarning("File '{FilePath}' not found on disk, skipping", request.FilePath);
+                    sw.Stop();
+                    LoreMetrics.PipelineFilesProcessed.Add(1,
+                        new KeyValuePair<string, object?>("pipeline.stage", "arrival"),
+                        new KeyValuePair<string, object?>("result", result));
+                    LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                        new KeyValuePair<string, object?>("pipeline.stage", "arrival"));
                     return;
                 }
 
@@ -84,6 +101,12 @@ public class FileArrivalService(
                 {
                     Interlocked.Increment(ref unchangedCount);
                     logger.FileUnchanged(fileInfo.FullName);
+                    sw.Stop();
+                    LoreMetrics.PipelineFilesProcessed.Add(1,
+                        new KeyValuePair<string, object?>("pipeline.stage", "arrival"),
+                        new KeyValuePair<string, object?>("result", "unchanged"));
+                    LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                        new KeyValuePair<string, object?>("pipeline.stage", "arrival"));
                     return;
                 }
 
@@ -106,6 +129,13 @@ public class FileArrivalService(
                         ModifiedAt = DateTime.UtcNow,
                     }
                 );
+
+                sw.Stop();
+                LoreMetrics.PipelineFilesProcessed.Add(1,
+                    new KeyValuePair<string, object?>("pipeline.stage", "arrival"),
+                    new KeyValuePair<string, object?>("result", "new"));
+                LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                    new KeyValuePair<string, object?>("pipeline.stage", "arrival"));
             }
         );
 
@@ -139,10 +169,11 @@ public class FileArrivalService(
         if (fileEntries.Count > 0)
         {
             logger.StageHandoff(fileEntries.Count, "TextExtract");
+            var traceParent = TracingHelper.CaptureTraceParent();
             foreach (var entry in fileEntries)
             {
                 await textExtractChannel.Writer.WriteAsync(
-                    new TextExtractRequest(entry.Path),
+                    new TextExtractRequest(entry.Path, traceParent),
                     cancellationToken
                 );
             }

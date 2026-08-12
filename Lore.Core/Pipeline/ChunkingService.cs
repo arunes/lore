@@ -1,10 +1,12 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Text;
 using Lore.Core.Logging;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -52,14 +54,20 @@ public class ChunkingService(
             parallelOptions,
             async (request, ct) =>
             {
+                using var activity = TracingHelper.StartStageSpan("chunking", request.FileId.ToString(), request.TraceParent);
+
                 if (!fileEntryContents.TryGetValue(request.FileId, out var fileContent))
                 {
                     logger.ChunkingFileMissing(request.FileId);
                     return;
                 }
 
+                var sw = Stopwatch.StartNew();
+
                 var chunks = ChunkText(fileContent!);
                 chunkedFiles.TryAdd(request.FileId, chunks.Count);
+
+                activity?.SetTag("file.chunk_count", chunks.Count);
 
                 for (int i = 0; i < chunks.Count; i++)
                 {
@@ -72,6 +80,13 @@ public class ChunkingService(
                         }
                     );
                 }
+
+                sw.Stop();
+                LoreMetrics.PipelineFilesProcessed.Add(1,
+                    new KeyValuePair<string, object?>("pipeline.stage", "chunking"),
+                    new KeyValuePair<string, object?>("result", "success"));
+                LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                    new KeyValuePair<string, object?>("pipeline.stage", "chunking"));
             }
         );
 
@@ -106,10 +121,11 @@ public class ChunkingService(
         if (fileCount > 0)
         {
             logger.StageHandoff(fileCount, "Vectorize");
+            var traceParent = TracingHelper.CaptureTraceParent();
             foreach (var fileEntryId in distinctFileEntryIds)
             {
                 await vectorizeChannel.Writer.WriteAsync(
-                    new VectorizeRequest(fileEntryId),
+                    new VectorizeRequest(fileEntryId, traceParent),
                     cancellationToken
                 );
             }

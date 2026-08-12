@@ -4,6 +4,7 @@ using System.Text;
 using Lore.Common.Models;
 using Lore.Core.Logging;
 using Lore.Core.Settings;
+using Lore.Core.Telemetry;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
@@ -25,6 +26,9 @@ public class AgenticRAGService(
     {
         var chatId = request.ChatId ?? Guid.NewGuid();
         var chatSid = chatId.ToString("N")[..8];
+
+        using var activity = LoreActivitySource.Source.StartActivity("chat/agentic");
+        activity?.SetTag("chat.id", chatSid);
 
         logger.ChatStarted(chatSid, "Agentic");
 
@@ -55,6 +59,8 @@ public class AgenticRAGService(
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        using var activity = LoreActivitySource.Source.StartActivity("chat/agentic/llm_stream");
+
         var sw = Stopwatch.StartNew();
         var currentTurnMessages = new ChatHistory(messageHistory);
         currentTurnMessages.AddUserMessage(userMessage);
@@ -79,6 +85,7 @@ public class AgenticRAGService(
         catch (Exception ex)
         {
             logger.StreamInitFailed(chatSid, ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             yield break;
         }
 
@@ -94,6 +101,17 @@ public class AgenticRAGService(
 
         sw.Stop();
         logger.StreamedSummary(chatSid, llmResponse.Length, sw.ElapsedMilliseconds);
+
+        activity?.SetTag("chat.stream_chars", llmResponse.Length);
+        activity?.SetTag("chat.stream_duration_ms", sw.ElapsedMilliseconds);
+
+        LoreMetrics.RagChats.Add(1,
+            new KeyValuePair<string, object?>("backend", "agentic"),
+            new KeyValuePair<string, object?>("result", "success"));
+        LoreMetrics.RagLlmStreamDuration.Record(sw.ElapsedMilliseconds,
+            new KeyValuePair<string, object?>("backend", "agentic"));
+        LoreMetrics.RagLlmStreamChars.Record(llmResponse.Length,
+            new KeyValuePair<string, object?>("backend", "agentic"));
 
         currentTurnMessages.AddAssistantMessage(llmResponse.ToString());
         memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));

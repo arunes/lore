@@ -10,6 +10,8 @@ builder.Services.AddOpenApi()
             .AddDataServices()
             .AddMemoryCache();
 
+builder.Services.AddLoreTelemetry(builder.Configuration);
+
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {

@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Lore.Core.Logging;
+using Lore.Core.Telemetry;
 
 namespace Lore.Core.Pipeline;
 
@@ -19,6 +20,8 @@ public class ChannelProcessor<TRequest>(
         var maxBatchSize = service.GetBatchSize();
         var timeout = TimeSpan.FromSeconds(2);
         var batch = new List<TRequest>(maxBatchSize);
+
+        var stageName = typeof(TRequest).Name;
 
         while (await channel.Reader.WaitToReadAsync(stoppingToken))
         {
@@ -41,7 +44,13 @@ public class ChannelProcessor<TRequest>(
             {
                 var sw = Stopwatch.StartNew();
                 await service.ProcessBatchAsync(batch, stoppingToken);
-                logger.BatchDrained(batch.Count, typeof(TRequest).Name, sw.ElapsedMilliseconds);
+                sw.Stop();
+
+                logger.BatchDrained(batch.Count, stageName, sw.ElapsedMilliseconds);
+
+                LoreMetrics.PipelineBatchSize.Record(batch.Count, new KeyValuePair<string, object?>("pipeline.stage", stageName));
+                LoreMetrics.PipelineBatchDuration.Record(sw.ElapsedMilliseconds, new KeyValuePair<string, object?>("pipeline.stage", stageName));
+
                 batch.Clear();
             }
         }

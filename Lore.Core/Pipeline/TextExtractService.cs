@@ -1,10 +1,12 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lore.Core.Logging;
 using Lore.Core.Retrieval;
+using Lore.Core.Telemetry;
 using Lore.Core.TextExtractors;
 using Lore.Data;
 using Lore.Data.Models;
@@ -55,11 +57,15 @@ public class TextExtractService(
             parallelOptions,
             async (request, ct) =>
             {
+                using var activity = TracingHelper.StartStageSpan("textextract", request.FilePath, request.TraceParent);
+
                 if (!fileEntryIds.TryGetValue(request.FilePath, out var fileId))
                 {
                     logger.FileMissingInDb(request.FilePath);
                     return;
                 }
+
+                activity?.SetTag("file.id", fileId);
 
                 var fileEntry = new FileEntry
                 {
@@ -73,6 +79,9 @@ public class TextExtractService(
                     Directory = default!,
                 };
 
+                var sw = Stopwatch.StartNew();
+                string? result;
+
                 try
                 {
                     var extractor = textExtractorFactory.GetExtractor(request.FilePath);
@@ -82,12 +91,14 @@ public class TextExtractService(
                     {
                         fileEntry.ProcessStatus = FileProcessStatus.EmptyContent;
                         logger.ExtractionEmpty(request.FilePath);
+                        result = "empty";
                     }
                     else
                     {
                         fileEntry.ProcessStatus = FileProcessStatus.TextExtracted;
                         fileEntry.Content = cleanedText;
                         logger.ExtractionOutcome(request.FilePath, extractor.GetType().Name, cleanedText.Length);
+                        result = "extracted";
                     }
 
                     fileEntries.Add(fileEntry);
@@ -97,6 +108,7 @@ public class TextExtractService(
                     fileEntry.ProcessStatus = FileProcessStatus.NotSupportedFile;
                     fileEntries.Add(fileEntry);
                     logger.FileNotSupported(request.FilePath, Path.GetExtension(request.FilePath));
+                    result = "not_supported";
                 }
                 catch (Exception ex)
                 {
@@ -104,7 +116,15 @@ public class TextExtractService(
                     fileEntry.Content = ex.Message;
                     fileEntries.Add(fileEntry);
                     logger.ExtractionFailed(request.FilePath, ex);
+                    result = "failed";
                 }
+
+                sw.Stop();
+                LoreMetrics.PipelineFilesProcessed.Add(1,
+                    new KeyValuePair<string, object?>("pipeline.stage", "textextract"),
+                    new KeyValuePair<string, object?>("result", result));
+                LoreMetrics.PipelineFileDuration.Record(sw.ElapsedMilliseconds,
+                    new KeyValuePair<string, object?>("pipeline.stage", "textextract"));
             }
         );
 
@@ -138,10 +158,11 @@ public class TextExtractService(
         if (extracted > 0)
         {
             logger.StageHandoff(extracted, "FileClassify");
+            var traceParent = TracingHelper.CaptureTraceParent();
             foreach (var entry in fileEntries.Where(e => e.ProcessStatus == FileProcessStatus.TextExtracted))
             {
                 await fileClassifyChannel.Writer.WriteAsync(
-                    new FileClassifyRequest(entry.Id),
+                    new FileClassifyRequest(entry.Id, traceParent),
                     cancellationToken
                 );
             }

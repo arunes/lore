@@ -4,6 +4,7 @@ using System.Text.Json;
 using Lore.Common.Models;
 using Lore.Core.Logging;
 using Lore.Core.Settings;
+using Lore.Core.Telemetry;
 using Lore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -67,11 +68,13 @@ public class RetrievalService(
         return [.. chunksByFile];
     }
 
-    public async Task<List<int>> RetrieveDocumentChunksAsync(
+public async Task<List<int>> RetrieveDocumentChunksAsync(
         RetrievalQuery query,
         CancellationToken cancellationToken
     )
     {
+        using var activity = LoreActivitySource.Source.StartActivity("retrieval/hybrid_search");
+
         var sw = Stopwatch.StartNew();
         var formattedFts = FormatFtsQuery(query.FTSTerms);
         var cleanedPassage = CleanSearchQuery(query.SearchQuery);
@@ -91,7 +94,7 @@ public class RetrievalService(
         var passageVectorJson = JsonSerializer.Serialize(embedding);
         var chunkVectorTask = dbContext
             .Database.SqlQuery<int>(
-                $"SELECT chunk_id FROM vec_file_chunks WHERE embedding MATCH {passageVectorJson} AND k = {maxNumberSearchResults} ORDER BY distance ASC"
+                $"SELECT chunk_id FROM vec_file_chunks WHERE embedding MATCH {passageVectorJson} ORDER BY distance LIMIT {maxNumberSearchResults}"
             )
             .ToListAsync(cancellationToken);
 
@@ -125,7 +128,16 @@ public class RetrievalService(
             .Take(maxNumberSearchResults)
             .ToList();
 
+        sw.Stop();
         logger.RetrievalResult(ftsResults.Count, vectorResults.Count, fused.Count, sw.ElapsedMilliseconds);
+
+        activity?.SetTag("retrieval.fts_count", ftsResults.Count);
+        activity?.SetTag("retrieval.vector_count", vectorResults.Count);
+        activity?.SetTag("retrieval.fused_count", fused.Count);
+        activity?.SetTag("retrieval.duration_ms", sw.ElapsedMilliseconds);
+
+        LoreMetrics.RagRetrievalDuration.Record(sw.ElapsedMilliseconds);
+
         return fused;
     }
 

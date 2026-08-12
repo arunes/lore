@@ -9,6 +9,7 @@ using Lore.Common.Extensions;
 using Lore.Core.Logging;
 using Lore.Core.Retrieval;
 using Lore.Core.Settings;
+using Lore.Core.Telemetry;
 
 using System.ClientModel;
 
@@ -30,6 +31,9 @@ public class TraditionalRAGService(
     {
         var chatId = request.ChatId ?? Guid.NewGuid();
         var chatSid = chatId.ToString("N")[..8];
+
+        using var activity = LoreActivitySource.Source.StartActivity("chat/traditional");
+        activity?.SetTag("chat.id", chatSid);
 
         logger.ChatStarted(chatSid, "Traditional");
 
@@ -119,6 +123,8 @@ public class TraditionalRAGService(
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        using var activity = LoreActivitySource.Source.StartActivity("chat/traditional/llm_stream");
+
         var sw = Stopwatch.StartNew();
         var currentTurnMessages = new List<ChatMessage>(messageHistory)
         {
@@ -146,6 +152,7 @@ public class TraditionalRAGService(
         catch (Exception ex)
         {
             logger.StreamInitFailed(chatSid, ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             yield break;
         }
 
@@ -162,6 +169,17 @@ public class TraditionalRAGService(
         sw.Stop();
         logger.StreamedSummary(chatSid, llmResponse.Length, sw.ElapsedMilliseconds);
 
+        activity?.SetTag("chat.stream_chars", llmResponse.Length);
+        activity?.SetTag("chat.stream_duration_ms", sw.ElapsedMilliseconds);
+
+        LoreMetrics.RagChats.Add(1,
+            new KeyValuePair<string, object?>("backend", "traditional"),
+            new KeyValuePair<string, object?>("result", "success"));
+        LoreMetrics.RagLlmStreamDuration.Record(sw.ElapsedMilliseconds,
+            new KeyValuePair<string, object?>("backend", "traditional"));
+        LoreMetrics.RagLlmStreamChars.Record(llmResponse.Length,
+            new KeyValuePair<string, object?>("backend", "traditional"));
+
         currentTurnMessages.Add(new ChatMessage(ChatRole.Assistant, llmResponse.ToString()));
         memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));
     }
@@ -173,6 +191,8 @@ public class TraditionalRAGService(
         string chatSid,
         CancellationToken cancellationToken)
     {
+        using var activity = LoreActivitySource.Source.StartActivity("chat/traditional/retrieval_query");
+
         var defaultQuery = new RetrievalQuery
         {
             NeedsRetrieval = true,
@@ -224,11 +244,14 @@ public class TraditionalRAGService(
             var response = cleanText.DeserializeJson<RetrievalQuery>();
             var finalQuery = response ?? defaultQuery;
             logger.RetrievalDecision(chatSid, finalQuery.NeedsRetrieval, finalQuery.SearchQuery?.Length ?? 0, finalQuery.FTSTerms.Count);
+
+            activity?.SetTag("chat.needs_retrieval", finalQuery.NeedsRetrieval);
             return finalQuery;
         }
         catch (Exception ex)
         {
             logger.RetrievalQueryFallback(chatSid, ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             return defaultQuery;
         }
     }
