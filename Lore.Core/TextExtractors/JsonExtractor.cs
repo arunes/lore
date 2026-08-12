@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".json", ".jsonl", ".ndjson", ".gdoc", ".gsheet")]
 public class JsonExtractor : ITextExtractor
 {
     public async Task<string?> ExtractTextAsync(
@@ -50,7 +51,7 @@ public class JsonExtractor : ITextExtractor
                 {
                     FlattenElement(item, $"{currentPath}[{index++}]", sb);
                 }
-                
+
                 break;
 
             case JsonValueKind.String:

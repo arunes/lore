@@ -31,10 +31,7 @@ public class StartupService(
         await embeddingCache.InitializeAsync(stoppingToken);
 
         await fileArrivalChannel.Writer.WriteAsync(
-            new FileArrivalRequest("/home/arunes/downloads/ai200cert.png"), stoppingToken);
-
-        await fileArrivalChannel.Writer.WriteAsync(
-            new FileArrivalRequest("/home/arunes/downloads/ai200cert.png"), stoppingToken);
+            new FileArrivalRequest("/home/arunes/downloads/ai200cert2.png"), stoppingToken);
 
         //await ResumeFiles(stoppingToken);
         //await WatchDirectories(stoppingToken);

@@ -8,6 +8,7 @@ builder.WebHost.UseUrls($"https://*:{port}");
 builder.Services.AddOpenApi()
             .AddLoreServices()
             .AddOCRServices()
+            .AddTextExtractors()
             .AddAgenticServices()
             .AddLoreProcessors()
             .AddDataServices()

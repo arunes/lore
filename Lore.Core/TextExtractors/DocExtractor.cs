@@ -3,6 +3,7 @@ using NPOI.HWPF.Extractor;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".doc")]
 public class DocExtractor : ITextExtractor
 {
     public async Task<string?> ExtractTextAsync(

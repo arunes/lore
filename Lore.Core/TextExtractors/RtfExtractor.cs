@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".rtf")]
 public partial class RtfExtractor : ITextExtractor
 {
     // Regex to remove RTF formatting controls and groups

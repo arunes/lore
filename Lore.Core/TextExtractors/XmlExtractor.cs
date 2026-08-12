@@ -4,6 +4,12 @@ using System.Xml.Linq;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(
+    ".xml", ".xhtml", ".xht", ".gpx",
+    ".kml", ".svg", ".rss", ".atom",
+    ".plist", ".xlf", ".xliff", ".wsdl",
+    ".xslt", ".xsl", ".xsd", ".config",
+    ".csproj", ".vbproj")]
 public class XmlExtractor : ITextExtractor
 {
     public Task<string?> ExtractTextAsync(
@@ -62,7 +68,7 @@ public class XmlExtractor : ITextExtractor
             .Select(t => t.Value.Trim())
             .Where(v => !string.IsNullOrEmpty(v))
             .ToList();
-            
+
         var childElements = element.Elements().ToList();
 
         if (textNodes.Count > 0 && childElements.Count == 0)

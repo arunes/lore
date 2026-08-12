@@ -4,6 +4,7 @@ using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".pdf")]
 public class PdfExtractor : ITextExtractor
 {
     public async Task<string?> ExtractTextAsync(

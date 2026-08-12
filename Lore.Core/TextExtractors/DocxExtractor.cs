@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".docx", ".docm", ".dotx", ".dotm")]
 public class DocxExtractor : ITextExtractor
 {
     public Task<string?> ExtractTextAsync(

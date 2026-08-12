@@ -2,6 +2,7 @@ using System.Text;
 using ExcelDataReader;
 using Lore.Core.TextExtractors;
 
+[SupportedExtensions(".xlsx", ".xls", ".ods")]
 public class SpreadsheetExtractor : ITextExtractor
 {
     public Task<string?> ExtractTextAsync(

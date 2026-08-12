@@ -2,6 +2,7 @@ using RapidOcrNet;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".png", ".jpg", ".jpeg", ".bmp", ".gif")]
 public class VisionExtractor(RapidOcr rapidOcr) : ITextExtractor
 {
     private static readonly SemaphoreSlim _semaphore = new(1, 1);

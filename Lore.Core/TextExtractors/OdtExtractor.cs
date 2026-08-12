@@ -4,6 +4,7 @@ using System.Xml.Linq;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".odt")]
 public class OdtExtractor : ITextExtractor
 {
     public async Task<string?> ExtractTextAsync(

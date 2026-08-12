@@ -8,6 +8,7 @@ using SmartComponents.LocalEmbeddings;
 using Lore.Common.Models;
 using RapidOcrNet;
 using Microsoft.Extensions.Hosting;
+using System.Reflection;
 
 namespace Lore.Core;
 
@@ -45,13 +46,38 @@ public static class ServiceHelpers
             .AddKeyedTransient<ILoreRAGService, AgenticRAGService>(AIBackendRAGServiceType.Agentic);
     }
 
+    public static IServiceCollection AddTextExtractors(this IServiceCollection services)
+    {
+        var targetNamespace = "Lore.Core.TextExtractors";
+
+        var extractorTypes = Assembly.GetExecutingAssembly().GetTypes()
+            .Where(t =>
+                t.IsClass
+                && !t.IsAbstract
+                && t.Namespace == targetNamespace
+                && typeof(ITextExtractor).IsAssignableFrom(t));
+
+        foreach (var type in extractorTypes)
+        {
+            var attribute = type.GetCustomAttribute<SupportedExtensionsAttribute>();
+            if (attribute != null && attribute.Extensions != null)
+            {
+                foreach (var extension in attribute.Extensions)
+                {
+                    services.AddKeyedSingleton(typeof(ITextExtractor), extension, type);
+                }
+            }
+        }
+
+        return services.AddSingleton<ITextExtractorFactory, TextExtractorFactory>();
+    }
+
     public static IServiceCollection AddLoreServices(this IServiceCollection services)
     {
         // register code pages for NPOI doc parser
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         return services
-            .AddSingleton<ITextExtractorFactory, TextExtractorFactory>()
             .AddSingleton<IUserSettingsService, UserSettingsService>()
             .AddSingleton<EmbeddingCache>()
             .AddSingleton<LocalEmbedder>()

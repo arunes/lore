@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 namespace Lore.Core.TextExtractors;
 
+[SupportedExtensions(".pptx", ".ppt")]
 public partial class PresentationExtractor : ITextExtractor
 {
     // Regex to match readable ASCII/Unicode text strings in raw binary streams (.ppt)

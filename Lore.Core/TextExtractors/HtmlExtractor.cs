@@ -1,6 +1,7 @@
 using HtmlAgilityPack;
 using Lore.Core.TextExtractors;
 
+[SupportedExtensions(".html", ".htm")]
 public class HtmlExtractor : ITextExtractor
 {
     public Task<string?> ExtractTextAsync(
