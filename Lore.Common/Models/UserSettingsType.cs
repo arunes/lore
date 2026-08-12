@@ -180,5 +180,21 @@ public enum UserSettingsType
     SearchChatTemperature,
 
     [DefaultValue(0.1f)]
-    RetrievalQueryTemperature
+    RetrievalQueryTemperature,
+
+    [DefaultValue("./")]
+    OCRModelsRootPath,
+
+    [DefaultValue("ch_PP-OCRv5_mobile_det.onnx")]
+    OCRModelsDetFileName,
+
+    [DefaultValue("ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx")]
+    OCRModelsClsFileName,
+
+    [DefaultValue("latin_PP-OCRv5_rec_mobile_infer.onnx")]
+    OCRModelsRecFileName,
+
+    [DefaultValue("ppocrv5_latin_dict.txt")]
+    OCRModelsKeysFileName,
+
 }

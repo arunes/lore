@@ -1,16 +1,12 @@
 ﻿using Lore.App;
-using Lore.Core;
+using Lore.Core.Configuration;
 using Lore.Data;
 
 var port = 8081;
 var builder = WebApplication.CreateBuilder();
 builder.WebHost.UseUrls($"https://*:{port}");
 builder.Services.AddOpenApi()
-            .AddLoreServices()
-            .AddOCRServices()
-            .AddTextExtractors()
-            .AddAgenticServices()
-            .AddLoreProcessors()
+            .AddLoreCore()
             .AddDataServices()
             .AddMemoryCache();
 
