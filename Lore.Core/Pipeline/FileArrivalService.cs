@@ -3,7 +3,7 @@ using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Lore.Common.Helpers;
+using Lore.Common.Extensions;
 using Lore.Data;
 using Lore.Data.Models;
 
@@ -91,7 +91,8 @@ public class FileArrivalService(
                     return;
                 }
 
-                var fileHash = await HashHelpers.GetFileHashAsync(request.FilePath);
+                using var fileStream = File.OpenRead(request.FilePath);
+                var fileHash = await fileStream.ComputeSha256HexAsync();
                 fileEntries.Add(
                     new FileEntry
                     {

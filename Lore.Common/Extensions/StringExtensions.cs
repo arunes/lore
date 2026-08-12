@@ -1,8 +1,8 @@
-namespace Lore.Common.Helpers;
-
 using System.Text.RegularExpressions;
 
-public static partial class StringHelpers
+namespace Lore.Common.Extensions;
+
+public static partial class StringExtensions
 {
     // Compile-time generated regexes
     [GeneratedRegex(@"\n{3,}")]
@@ -11,16 +11,7 @@ public static partial class StringHelpers
     [GeneratedRegex(@"[ \t]+\n")]
     private static partial Regex TrailingSpacesRegex();
 
-    [GeneratedRegex(@"[^\w\s""]", RegexOptions.Compiled)]
-    private static partial Regex NoWordAndWhitespaceRegex();
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex WhitespaceRegex();
-
-    [GeneratedRegex(@"(?<match>""[^""]+"")|(?<match>\S+)")]
-    private static partial Regex SpaceMatchesRegex();
-
-    public static string? CleanTextForRAG(string? input)
+    public static string? CleanTextForRAG(this string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
@@ -43,7 +34,7 @@ public static partial class StringHelpers
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 
-    public static string CleanLLMJsonOutput(string output)
+    public static string CleanLLMJsonOutput(this string output)
     {
         var cleanText = output.Trim();
         if (cleanText.StartsWith("```json"))
@@ -60,25 +51,5 @@ public static partial class StringHelpers
         }
 
         return cleanText.Replace("\u00A0", " ").Replace("&nbsp;", " ");
-    }
-
-    public static string FormatFtsKeywords(string rawKeywords)
-    {
-        if (string.IsNullOrWhiteSpace(rawKeywords))
-        {
-            return string.Empty;
-        }
-
-        // 1. Sanitize special characters
-        string cleaned = NoWordAndWhitespaceRegex().Replace(rawKeywords, " ").Trim();
-
-        // 2. Tokenize by space, keeping quoted phrases intact
-        var matches = SpaceMatchesRegex()
-            .Matches(cleaned)
-            .Select(m => m.Groups["match"].Value)
-            .Where(term => !string.IsNullOrWhiteSpace(term));
-
-        // 3. Join with OR for broad recall (BM25 ORDER BY rank handles precision)
-        return string.Join(" OR ", matches);
     }
 }

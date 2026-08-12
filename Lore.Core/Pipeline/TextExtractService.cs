@@ -3,7 +3,7 @@ using System.Threading.Channels;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Lore.Common.Helpers;
+using Lore.Common.Extensions;
 using Lore.Core.TextExtractors;
 using Lore.Data;
 using Lore.Data.Models;
@@ -82,7 +82,7 @@ public class TextExtractService(
                 {
                     var extractor = textExtractorFactory.GetExtractor(request.FilePath);
                     var extractedText = await extractor.ExtractTextAsync(request.FilePath);
-                    var cleanedText = StringHelpers.CleanTextForRAG(extractedText);
+                    var cleanedText = extractedText.CleanTextForRAG();
                     if (string.IsNullOrWhiteSpace(cleanedText))
                     {
                         fileEntry.ProcessStatus = FileProcessStatus.EmptyContent;

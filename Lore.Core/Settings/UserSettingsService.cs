@@ -7,13 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Lore.Core.Settings;
 
-public interface IUserSettingsService
-{
-    T GetSetting<T>(UserSettingsType settingsType);
-
-    Task InitializeAsync(CancellationToken cancellationToken);
-}
-
 public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbContext dbContext) : IUserSettingsService
 {
     private readonly Dictionary<UserSettingsType, string?> _settings = [];

@@ -1,11 +1,10 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Lore.Common.Models;
 using Microsoft.Extensions.Caching.Memory;
-using Lore.Common.Helpers;
+using Lore.Common.Extensions;
 using Lore.Core.Retrieval;
 using Lore.Core.Settings;
 
@@ -202,8 +201,8 @@ public class TraditionalRAGService(
                 cancellationToken
             );
 
-            var cleanText = StringHelpers.CleanLLMJsonOutput(completion.Text);
-            var response = JsonSerializer.Deserialize<RetrievalQuery>(cleanText, JsonHelpers.JsonOptions);
+            var cleanText = completion.Text.CleanLLMJsonOutput();
+            var response = cleanText.DeserializeJson<RetrievalQuery>();
             return response ?? defaultQuery;
         }
         catch (Exception ex)

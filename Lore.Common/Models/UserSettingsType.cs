@@ -2,12 +2,6 @@ using System.ComponentModel;
 
 namespace Lore.Common.Models;
 
-public enum AIBackendRAGServiceType
-{
-    Traditional,
-    Agentic
-}
-
 public enum UserSettingsType
 {
     [DefaultValue("http://127.0.0.1:1234/v1")]

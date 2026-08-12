@@ -4,11 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.RAG;
 
-public interface IRAGFactory
-{
-    public IRAGService GetRAGService();
-}
-
 public class RAGFactory(
     IUserSettingsService userSettings,
     IServiceProvider serviceProvider) : IRAGFactory

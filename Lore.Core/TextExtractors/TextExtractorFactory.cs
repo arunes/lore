@@ -2,11 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.TextExtractors;
 
-public interface ITextExtractorFactory
-{
-    ITextExtractor GetExtractor(string filePath);
-}
-
 public class TextExtractorFactory(IServiceProvider serviceProvider) : ITextExtractorFactory
 {
     public ITextExtractor GetExtractor(string filePath)

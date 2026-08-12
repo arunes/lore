@@ -5,11 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.RAG;
 
-public interface IKernelFactory
-{
-    Kernel CreateKernel();
-}
-
 public class KernelFactory(
     IServiceProvider serviceProvider,
     IUserSettingsService userSettings) : IKernelFactory
