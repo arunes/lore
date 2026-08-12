@@ -7,7 +7,7 @@ using Microsoft.SemanticKernel.Text;
 using Lore.Data;
 using Lore.Data.Models;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public class ChunkingService(
     ILogger<ChunkingService> logger,

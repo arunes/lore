@@ -1,4 +1,4 @@
-using Lore.Core.Services;
+using Lore.Core.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.Configuration;

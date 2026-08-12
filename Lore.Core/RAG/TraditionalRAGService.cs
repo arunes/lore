@@ -6,18 +6,19 @@ using Microsoft.Extensions.Logging;
 using Lore.Common.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Lore.Common.Helpers;
-using Lore.Core.Services;
+using Lore.Core.Retrieval;
+using Lore.Core.Settings;
 
 using System.ClientModel;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.RAG;
 
 public class TraditionalRAGService(
     ILogger<TraditionalRAGService> logger,
     IUserSettingsService userSettings,
-    ILoreSearchTools searchTools,
+    IRetrievalService searchTools,
     IMemoryCache memoryCache
-) : ILoreRAGService
+) : IRAGService
 {
     private static string GetChatCacheKey(Guid chatId) => $"chat-trad-{chatId}";
 

@@ -4,7 +4,7 @@ using Lore.Data.Models;
 using SmartComponents.Inference;
 using SmartComponents.LocalEmbeddings;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.Retrieval;
 
 public class EmbeddingCache(LoreDbContext dbContext, LocalEmbedder embedder)
 {

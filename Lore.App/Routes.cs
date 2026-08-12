@@ -1,6 +1,5 @@
 using Lore.Common.Models;
-using Lore.Core.LLM;
-using Lore.Core.Services;
+using Lore.Core.RAG;
 
 namespace Lore.App;
 
@@ -14,7 +13,7 @@ public static class Routes
             "chat",
             async (
                 LoreChatRequest request,
-                ILoreRAGFactory ragFactory,
+                IRAGFactory ragFactory,
                 HttpResponse response,
                 CancellationToken cancellationToken
             ) =>

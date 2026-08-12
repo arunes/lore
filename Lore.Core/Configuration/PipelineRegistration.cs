@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Lore.Core.Services;
+using Lore.Core.Pipeline;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.Configuration;

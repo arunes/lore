@@ -1,21 +1,21 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using Lore.Common.Models;
-using Lore.Core.Services;
+using Lore.Core.Settings;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.RAG;
 
 public class AgenticRAGService(
     ILogger<AgenticRAGService> logger,
     IUserSettingsService userSettings,
     IMemoryCache memoryCache,
     IKernelFactory kernelFactory
-) : ILoreRAGService
+) : IRAGService
 {
     private static string GetChatCacheKey(Guid chatId) => $"chat-agent-{chatId}";
 

@@ -2,11 +2,11 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Lore.Core.LLM;
+using Lore.Core.Retrieval;
 using Lore.Data;
 using Lore.Data.Models;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public class FileClassifyService(
     ILogger<FileClassifyService> logger,

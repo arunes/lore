@@ -8,7 +8,7 @@ using Lore.Core.TextExtractors;
 using Lore.Data;
 using Lore.Data.Models;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public class TextExtractService(
     ILogger<TextExtractService> logger,

@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using Lore.Common.Models;
 using Lore.Data;
+using Lore.Core.Retrieval;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.RAG;
 
-public class KernelSearchTools(ILoreSearchTools searchTools, LoreDbContext dbContext)
+public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext dbContext)
 {
     public record SearchFilesByNameResponse(
         int Id,

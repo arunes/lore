@@ -1,9 +1,9 @@
 using Lore.Common.Models;
-using Lore.Core.Services;
+using Lore.Core.Settings;
 using Microsoft.SemanticKernel;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.RAG;
 
 public interface IKernelFactory
 {
@@ -24,8 +24,8 @@ public class KernelFactory(
             userSettings.GetSetting<string>(UserSettingsType.AIBackendAPIKey)
         );
 
-        var searchTools = serviceProvider.GetRequiredService<KernelSearchTools>();
-        builder.Plugins.AddFromObject(searchTools, pluginName: "SearchTools");
+        var searchTools = serviceProvider.GetRequiredService<KernelRetrievalTools>();
+        builder.Plugins.AddFromObject(searchTools, pluginName: "RetrievalTools");
 
         return builder.Build();
     }

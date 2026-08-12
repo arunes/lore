@@ -2,19 +2,8 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Lore.Core.Services;
 
-namespace Lore.Core;
-
-public record FileArrivalRequest(string FilePath);
-
-public record FileClassifyRequest(int FileId);
-
-public record TextExtractRequest(string FilePath);
-
-public record VectorizeRequest(int FileId);
-
-public record ChunkingRequest(int FileId);
+namespace Lore.Core.Pipeline;
 
 public class ChannelProcessor<TRequest>(
     ILogger<ChannelProcessor<TRequest>> logger,

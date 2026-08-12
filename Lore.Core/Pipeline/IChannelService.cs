@@ -1,4 +1,4 @@
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public interface IChannelService<T>
 {

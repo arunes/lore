@@ -1,5 +1,6 @@
 using Lore.Common.Models;
-using Lore.Core.LLM;
+using Lore.Core.RAG;
+using Lore.Core.Retrieval;
 using Microsoft.Extensions.DependencyInjection;
 using SmartComponents.LocalEmbeddings;
 
@@ -12,15 +13,15 @@ public static class RagRegistration
         return services
             .AddSingleton<EmbeddingCache>()
             .AddSingleton<LocalEmbedder>()
-            .AddSingleton<ILoreSearchTools, LoreSearchHelpers>()
-            .AddSingleton<ILoreRAGFactory, LoreRAGFactory>()
+            .AddSingleton<IRetrievalService, RetrievalService>()
+            .AddSingleton<IRAGFactory, RAGFactory>()
             .AddScoped<IKernelFactory, KernelFactory>()
-            .AddScoped<KernelSearchTools>()
+            .AddScoped<KernelRetrievalTools>()
             .AddScoped<AgenticRAGService>()
-            .AddKeyedTransient<ILoreRAGService, TraditionalRAGService>(
+            .AddKeyedTransient<IRAGService, TraditionalRAGService>(
                 AIBackendRAGServiceType.Traditional
             )
-            .AddKeyedTransient<ILoreRAGService, AgenticRAGService>(
+            .AddKeyedTransient<IRAGService, AgenticRAGService>(
                 AIBackendRAGServiceType.Agentic
             );
     }

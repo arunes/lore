@@ -5,7 +5,7 @@ using Lore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Settings;
 
 public interface IUserSettingsService
 {

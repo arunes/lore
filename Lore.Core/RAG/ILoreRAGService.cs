@@ -1,8 +1,8 @@
 using Lore.Common.Models;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.RAG;
 
-public interface ILoreRAGService
+public interface IRAGService
 {
     Task<LoreChatResponse> ChatAsync(
         LoreChatRequest request,

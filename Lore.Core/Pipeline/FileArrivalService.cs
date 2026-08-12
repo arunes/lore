@@ -7,7 +7,7 @@ using Lore.Common.Helpers;
 using Lore.Data;
 using Lore.Data.Models;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public class FileArrivalService(
     ILogger<FileArrivalService> logger,

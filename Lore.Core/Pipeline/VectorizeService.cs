@@ -8,7 +8,7 @@ using Lore.Data;
 using Lore.Data.Models;
 using SmartComponents.LocalEmbeddings;
 
-namespace Lore.Core.Services;
+namespace Lore.Core.Pipeline;
 
 public class VectorizeService(
     ILogger<VectorizeService> logger,

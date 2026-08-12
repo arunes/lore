@@ -1,5 +1,5 @@
 using Lore.Common.Models;
-using Lore.Core.Services;
+using Lore.Core.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using RapidOcrNet;
 

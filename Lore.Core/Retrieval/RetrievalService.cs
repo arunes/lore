@@ -1,36 +1,20 @@
 using System.Text;
 using System.Text.Json;
 using Lore.Common.Models;
-using Lore.Core.Services;
+using Lore.Core.Settings;
 using Lore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartComponents.LocalEmbeddings;
 
-namespace Lore.Core.LLM;
+namespace Lore.Core.Retrieval;
 
-public record DocumentChunkFile(
-    int Id,
-    string Path,
-    string? CategoryName,
-    string? DocTypeName,
-    List<DocumentChunk> Chunks);
-
-public record DocumentChunk(int Id, string ChunkText, int ChunkIndex);
-
-public interface ILoreSearchTools
-{
-    Task<List<DocumentChunkFile>> GetChunkContentsAsync(List<int> documentChunkIds, CancellationToken cancellationToken);
-
-    Task<List<int>> RetrieveDocumentChunksAsync(RetrievalQuery query, CancellationToken cancellationToken);
-}
-
-public class LoreSearchHelpers(
-    ILogger<LoreSearchHelpers> logger,
+public class RetrievalService(
+    ILogger<RetrievalService> logger,
     IUserSettingsService userSettings,
     LocalEmbedder embedder,
     IDbContextFactory<LoreDbContext> dbContextFactory
-) : ILoreSearchTools
+) : IRetrievalService
 {
     public async Task<List<DocumentChunkFile>> GetChunkContentsAsync(List<int> documentChunkIds, CancellationToken cancellationToken)
     {
