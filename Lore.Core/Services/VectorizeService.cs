@@ -24,6 +24,7 @@ public class VectorizeService(
     private record ChunkInformation(
         int Id,
         string FileName,
+        string Directory,
         string ChunkText,
         string? PrimaryCategory,
         string? DocumentType
@@ -154,6 +155,7 @@ public class VectorizeService(
                 var sb = new StringBuilder();
 
                 sb.Append("File: ").AppendLine(ch.FileName);
+                sb.Append("Directory: ").AppendLine(ch.Directory);
 
                 if (!string.IsNullOrWhiteSpace(ch.PrimaryCategory))
                     sb.Append("Primary Category: ").AppendLine(ch.PrimaryCategory);
@@ -199,6 +201,7 @@ public class VectorizeService(
                 fc.FileEntryId,
                 fc.ChunkText,
                 FileName = fc.FileEntry.Path,
+                Directory = fc.FileEntry.Directory,
                 PrimaryCategory = fc.FileEntry.PrimaryCategory != null
                     ? fc.FileEntry.PrimaryCategory.Name
                     : null,
@@ -216,6 +219,7 @@ public class VectorizeService(
                     grp.Select(fc => new ChunkInformation(
                             fc.Id,
                             fc.FileName,
+                            fc.Directory,
                             fc.ChunkText,
                             fc.PrimaryCategory,
                             fc.DocumentType

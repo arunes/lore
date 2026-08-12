@@ -5,11 +5,23 @@ using Lore.Core.LLM;
 using Lore.Core.Services;
 using Lore.Core.TextExtractors;
 using SmartComponents.LocalEmbeddings;
+using Lore.Common.Models;
 
 namespace Lore.Core;
 
 public static class ServiceHelpers
 {
+    public static IServiceCollection AddAgenticServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<ILoreRAGFactory, LoreRAGFactory>()
+            .AddScoped<IKernelFactory, KernelFactory>()
+            .AddScoped<KernelSearchTools>()
+            .AddScoped<AgenticRAGService>()
+            .AddKeyedTransient<ILoreRAGService, TraditionalRAGService>(AIBackendRAGServiceType.Traditional)
+            .AddKeyedTransient<ILoreRAGService, AgenticRAGService>(AIBackendRAGServiceType.Agentic);
+    }
+
     public static IServiceCollection AddLoreServices(this IServiceCollection services)
     {
         // register code pages for NPOI doc parser
@@ -17,11 +29,10 @@ public static class ServiceHelpers
 
         return services
             .AddSingleton<ITextExtractorFactory, TextExtractorFactory>()
+            .AddSingleton<IUserSettingsService, UserSettingsService>()
             .AddSingleton<EmbeddingCache>()
             .AddSingleton<LocalEmbedder>()
-            .AddSingleton<ILoreChatService, LoreChatService>()
-            .AddSingleton<IUserSettingsService, UserSettingsService>()
-            .AddTransient<IChatClientFactory, ChatClientFactory>()
+            .AddSingleton<ILoreSearchTools, LoreSearchHelpers>()
             .AddTransient<IChannelService<FileArrivalRequest>, FileArrivalService>()
             .AddTransient<IChannelService<TextExtractRequest>, TextExtractService>()
             .AddTransient<IChannelService<FileClassifyRequest>, FileClassifyService>()

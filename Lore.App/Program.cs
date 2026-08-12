@@ -1,19 +1,25 @@
-﻿using Lore.App.Commands;
-using Spectre.Console.Cli;
+﻿using Lore.App;
+using Lore.Core;
+using Lore.Data;
 
-var cancellationTokenSource = new CancellationTokenSource();
-Console.CancelKeyPress += (_, e) =>
+var port = 8081;
+var builder = WebApplication.CreateBuilder();
+builder.WebHost.UseUrls($"https://*:{port}");
+builder.Services.AddOpenApi()
+            .AddLoreServices()
+            .AddAgenticServices()
+            .AddLoreProcessors()
+            .AddDataServices()
+            .AddMemoryCache();
+
+var app = builder.Build();
+if (app.Environment.IsDevelopment())
 {
-    e.Cancel = true;
-    cancellationTokenSource.Cancel();
-    Console.WriteLine("Cancellation requested...");
-};
+    app.MapOpenApi();
+}
 
-var cliApp = new CommandApp();
-cliApp.Configure(config =>
-{
-    config.AddCommand<ChatCommand>("chat");
-    config.AddCommand<UICommand>("ui");
-});
+app.RegisterRoutes();
 
-return await cliApp.RunAsync(args, cancellationTokenSource.Token);
+Console.WriteLine($"Running web server on {port}...");
+await app.RunAsync();
+

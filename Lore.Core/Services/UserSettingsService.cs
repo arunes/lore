@@ -30,8 +30,7 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
             throw new KeyNotFoundException($"The value of {settingsType} setting cannot be empty!");
         }
 
-        var targetType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-        return (T)Convert.ChangeType(value, targetType)!;
+        return ConvertValue<T>(value);
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -47,5 +46,25 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
 
             _settings[settingKey] = setting.Value;
         }
+    }
+
+    public static T ConvertValue<T>(object value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var targetType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+
+        if (targetType.IsEnum)
+        {
+            if (value is string stringValue)
+            {
+                return (T)Enum.Parse(targetType, stringValue, ignoreCase: true);
+            }
+
+            // Handles converting numeric types (e.g., int, byte) to the Enum type
+            return (T)Enum.ToObject(targetType, value);
+        }
+
+        return (T)Convert.ChangeType(value, targetType);
     }
 }

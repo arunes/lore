@@ -107,7 +107,7 @@ public class ChunkingService(
         }
     }
 
-    public List<string> ChunkText(string input)
+    public static List<string> ChunkText(string input)
     {
 #pragma warning disable SKEXP0050
         var lines = TextChunker.SplitPlainTextLines(input, 100);
