@@ -18,7 +18,7 @@ public class FileClassifyService(
     EmbeddingCache embeddingCache
 ) : IChannelService<FileClassifyRequest>
 {
-    public int GetBatchSize() => 100;
+    public int GetBatchSize() => 250;
 
     public async Task ProcessAsync(
         FileClassifyRequest request,
@@ -63,7 +63,7 @@ public class FileClassifyService(
         }
 
         var fileEntries = new ConcurrentBag<(FileEntry Entry, string? TraceParent)>();
-        using var semaphore = new SemaphoreSlim(4);
+        using var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
         var tasks = requests.Select(async request =>
         {
             await semaphore.WaitAsync(cancellationToken);

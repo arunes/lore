@@ -47,7 +47,7 @@ public class VectorizeService(
         var vectorizedResults = new ConcurrentDictionary<int, List<ChunkVectorInformation>>();
         var perFileDurations = new ConcurrentDictionary<int, long>();
 
-        using var semaphore = new SemaphoreSlim(2);
+        using var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
         var sw = Stopwatch.StartNew();
 
         var tasks = fileChunkContents.Select(async fcc =>
@@ -100,22 +100,22 @@ public class VectorizeService(
 
         int totalVectorsWritten = 0;
 
-        foreach (var (fileId, chunks) in vectorizedResults)
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken
+        );
+
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (chunks.Count == 0)
+            foreach (var (fileId, chunks) in vectorizedResults)
             {
-                logger.ZeroVectorsWritten(fileId);
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(
-                cancellationToken
-            );
+                if (chunks.Count == 0)
+                {
+                    logger.ZeroVectorsWritten(fileId);
+                    continue;
+                }
 
-            try
-            {
                 var chunkIds = chunks.Select(ch => ch.Id).ToList();
                 await dbContext.Database.ExecuteSqlRawAsync(
                     "DELETE FROM vec_file_chunks WHERE chunk_id IN (SELECT value FROM json_each({0}));",
@@ -158,13 +158,15 @@ public class VectorizeService(
                         cancellationToken
                     );
 
-                await transaction.CommitAsync(cancellationToken);
                 totalVectorsWritten += chunks.Count;
             }
-            catch (Exception ex)
-            {
-                logger.VectorWriteFailed(fileId, ex);
-            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to write vector batch to database");
+            await transaction.RollbackAsync(cancellationToken);
         }
 
         logger.VectorizeFinished(vectorizedResults.Count, totalVectorsWritten);

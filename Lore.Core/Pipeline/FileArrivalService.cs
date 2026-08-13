@@ -18,7 +18,7 @@ public class FileArrivalService(
     IDbContextFactory<LoreDbContext> dbContextFactory
 ) : IChannelService<FileArrivalRequest>
 {
-    public int GetBatchSize() => 250;
+    public int GetBatchSize() => 500;
 
     public async Task ProcessAsync(
         FileArrivalRequest request,

@@ -20,7 +20,7 @@ public class TextExtractService(
     IDbContextFactory<LoreDbContext> dbContextFactory
 ) : IChannelService<TextExtractRequest>
 {
-    public int GetBatchSize() => 10;
+    public int GetBatchSize() => 25;
 
     public async Task ProcessAsync(
         TextExtractRequest request,

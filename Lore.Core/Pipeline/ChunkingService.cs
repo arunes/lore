@@ -18,7 +18,7 @@ public class ChunkingService(
     IDbContextFactory<LoreDbContext> dbContextFactory
 ) : IChannelService<ChunkingRequest>
 {
-    public int GetBatchSize() => 25;
+    public int GetBatchSize() => 100;
 
     public async Task ProcessAsync(ChunkingRequest request, CancellationToken cancellationToken) =>
         await ProcessBatchAsync([request], cancellationToken);

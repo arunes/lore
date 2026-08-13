@@ -33,41 +33,42 @@ public class StartupService(
         await embeddingCache.InitializeAsync(stoppingToken);
         await ResumeFilesAsync(stoppingToken);
         WatchDirectoriesAsync(stoppingToken);
+        await FullScanDirectoriesAsync(stoppingToken);
 
         logger.StartupComplete();
     }
 
-    // private async Task FullScanDirectoriesAsync(CancellationToken cancellationToken)
-    // {
-    //     var fileSources = await db.FileSources
-    //             .AsNoTracking()
-    //             .Where(fs => fs.IsEnabled)
-    //             .Select(fs => new { fs.Id, fs.Path, fs.ExcludePattern })
-    //             .ToListAsync(cancellationToken);
+    private async Task FullScanDirectoriesAsync(CancellationToken cancellationToken)
+    {
+        var fileSources = await db.FileSources
+                .AsNoTracking()
+                .Where(fs => fs.IsEnabled)
+                .Select(fs => new { fs.Id, fs.Path, fs.ExcludePattern })
+                .ToListAsync(cancellationToken);
 
-    //     foreach (var fileSource in fileSources)
-    //     {
-    //         string[] excludedExtensions = fileSource.ExcludePattern?.Split(',') ?? [];
-    //         if (!Directory.Exists(fileSource.Path))
-    //         {
-    //             logger.DirectoryMissing(fileSource.Path);
-    //             continue;
-    //         }
+        foreach (var fileSource in fileSources)
+        {
+            string[] excludedExtensions = fileSource.ExcludePattern?.Split(',') ?? [];
+            if (!Directory.Exists(fileSource.Path))
+            {
+                logger.DirectoryMissing(fileSource.Path);
+                continue;
+            }
 
-    //         string[] allFiles = Directory.GetFiles(fileSource.Path, "*.*", SearchOption.AllDirectories);
-    //         foreach (string filePath in allFiles)
-    //         {
-    //             string extension = Path.GetExtension(filePath);
-    //             if (excludedExtensions.Contains(extension))
-    //             {
-    //                 logger.WatcherIgnored(filePath);
-    //                 continue;
-    //             }
+            string[] allFiles = Directory.GetFiles(fileSource.Path, "*.*", SearchOption.AllDirectories);
+            foreach (string filePath in allFiles)
+            {
+                string extension = Path.GetExtension(filePath);
+                if (excludedExtensions.Contains(extension))
+                {
+                    logger.WatcherIgnored(filePath);
+                    continue;
+                }
 
-    //             await fileArrivalChannel.Writer.WriteAsync(new FileArrivalRequest(filePath), cancellationToken);
-    //         }
-    //     }
-    // }
+                await fileArrivalChannel.Writer.WriteAsync(new FileArrivalRequest(filePath), cancellationToken);
+            }
+        }
+    }
 
     private async Task WatchDirectoriesAsync(CancellationToken cancellationToken)
     {
