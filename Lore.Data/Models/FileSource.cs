@@ -4,6 +4,6 @@ public class FileSource : BaseModel
 {
     public int Id { get; set; }
     public required string Path { get; set; }
-    public string? ExcludePattern { get; set; }
+    public string? ExcludeExtensions { get; set; }
     public bool IsEnabled { get; set; }
 }

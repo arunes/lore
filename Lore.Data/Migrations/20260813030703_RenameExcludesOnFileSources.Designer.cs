@@ -3,6 +3,7 @@ using System;
 using Lore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Lore.Data.Migrations
 {
     [DbContext(typeof(LoreDbContext))]
-    partial class LoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813030703_RenameExcludesOnFileSources")]
+    partial class RenameExcludesOnFileSources
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
