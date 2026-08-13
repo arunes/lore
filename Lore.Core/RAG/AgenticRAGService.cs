@@ -34,7 +34,7 @@ public class AgenticRAGService(
 
         memoryCache.TryGetValue(GetChatCacheKey(chatId), out ChatHistory? conversationHistory);
         conversationHistory ??= new ChatHistory(
-            userSettings.GetSetting<string>(UserSettingsType.LoreChatAgenticSystemPrompt),
+            userSettings.GetSetting<string>(UserSettingsType.AgenticSystemPrompt),
             AuthorRole.System);
 
         var kernel = kernelFactory.CreateKernel();
@@ -72,7 +72,7 @@ public class AgenticRAGService(
             var executionSettings = new OpenAIPromptExecutionSettings
             {
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                Temperature = userSettings.GetSetting<float>(UserSettingsType.SearchChatTemperature)
+                Temperature = userSettings.GetSetting<float>(UserSettingsType.ChatTemperature)
             };
 
             responseStream = chatCompletion.GetStreamingChatMessageContentsAsync(

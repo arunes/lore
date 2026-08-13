@@ -40,7 +40,7 @@ public class TraditionalRAGService(
         var chatClient = CreateChatClient();
 
         memoryCache.TryGetValue(GetChatCacheKey(chatId), out List<ChatMessage>? conversationHistory);
-        conversationHistory ??= [new(ChatRole.System, userSettings.GetSetting<string>(UserSettingsType.LoreChatTraditionalSystemPrompt))];
+            conversationHistory ??= [new(ChatRole.System, userSettings.GetSetting<string>(UserSettingsType.TraditionalSystemPrompt))];
 
         var query = await GetRetrievalQueryAsync(chatClient, conversationHistory, request, chatSid, cancellationToken);
         var documentChunkIds = query.NeedsRetrieval ? await searchTools.RetrieveDocumentChunksAsync(query, cancellationToken) : [];
@@ -136,7 +136,7 @@ public class TraditionalRAGService(
         {
             var chatOptions = new ChatOptions
             {
-                Temperature = userSettings.GetSetting<float>(UserSettingsType.SearchChatTemperature),
+                Temperature = userSettings.GetSetting<float>(UserSettingsType.ChatTemperature),
                 Reasoning = new ReasoningOptions
                 {
                     Effort = ReasoningEffort.None
@@ -202,7 +202,7 @@ public class TraditionalRAGService(
 
         try
         {
-            var systemPrompt = userSettings.GetSetting<string>(UserSettingsType.LoreChatTraditionalRetrievalQuerySystemPrompt);
+            var systemPrompt = userSettings.GetSetting<string>(UserSettingsType.RetrievalQueryPrompt);
 
             var history = conversationHistory
                 .Where(h => h.Role != ChatRole.System)

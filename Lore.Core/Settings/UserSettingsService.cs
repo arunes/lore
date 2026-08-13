@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using Lore.Common.Extensions;
 using Lore.Common.Models;
 using Lore.Core.Logging;
 using Lore.Data;
@@ -16,7 +14,7 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
     {
         if (!_settings.TryGetValue(settingsType, out string? value))
         {
-            value = settingsType.GetAttribute<DefaultValueAttribute>()!.Value!.ToString();
+            value = SettingsCatalog.ByKey(settingsType).DefaultValue!.ToString();
         }
 
         if (string.IsNullOrWhiteSpace(value))
