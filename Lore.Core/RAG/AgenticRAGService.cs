@@ -92,7 +92,7 @@ public class AgenticRAGService(
         var llmResponse = new StringBuilder();
         await foreach (var update in responseStream.WithCancellation(cancellationToken))
         {
-            if (!string.IsNullOrEmpty(update.Content))
+            if (!string.IsNullOrWhiteSpace(update.Content))
             {
                 llmResponse.Append(update.Content);
                 yield return update.Content;
