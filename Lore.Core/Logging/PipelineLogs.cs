@@ -13,8 +13,8 @@ internal static partial class PipelineLogs
     [LoggerMessage(EventId = 1004, Level = LogLevel.Debug, Message = "Resumed file {id} at status {status} → next stage {nextStage}")]
     public static partial void ResumedFile(this ILogger logger, int id, string status, string nextStage);
 
-    [LoggerMessage(EventId = 1005, Level = LogLevel.Information, Message = "Watching directory {directory} (excluding {excludePattern})")]
-    public static partial void WatchDirectoryStarted(this ILogger logger, string directory, string excludePattern);
+    [LoggerMessage(EventId = 1005, Level = LogLevel.Information, Message = "Watching directory {directory} (excluding {excludeExtensions})")]
+    public static partial void WatchDirectoryStarted(this ILogger logger, string directory, string excludeExtensions);
 
     [LoggerMessage(EventId = 1006, Level = LogLevel.Warning, Message = "Directory {directory} does not exist, skipping")]
     public static partial void DirectoryMissing(this ILogger logger, string directory);

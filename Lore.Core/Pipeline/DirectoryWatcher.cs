@@ -40,9 +40,9 @@ public class DirectoryWatcher(
     private void OnError(object sender, ErrorEventArgs e) =>
         logger.WatcherError(e.GetException());
 
-    public async Task StartWatchingAsync(string directory, string? excludePattern)
+    public async Task StartWatchingAsync(string directory, string? excludeExtensions)
     {
-        _excludedExtensions = excludePattern?.Split(',') ?? [];
+        _excludedExtensions = excludeExtensions?.Split(',') ?? [];
 
         using var watcher = new FileSystemWatcher(directory);
 

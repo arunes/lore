@@ -43,12 +43,12 @@ public class StartupService(
         var fileSources = await db.FileSources
                 .AsNoTracking()
                 .Where(fs => fs.IsEnabled)
-                .Select(fs => new { fs.Id, fs.Path, fs.ExcludePattern })
+                .Select(fs => new { fs.Id, fs.Path, fs.ExcludeExtensions })
                 .ToListAsync(cancellationToken);
 
         foreach (var fileSource in fileSources)
         {
-            string[] excludedExtensions = fileSource.ExcludePattern?.Split(',') ?? [];
+            string[] excludedExtensions = fileSource.ExcludeExtensions?.Split(',') ?? [];
             if (!Directory.Exists(fileSource.Path))
             {
                 logger.DirectoryMissing(fileSource.Path);
@@ -75,7 +75,7 @@ public class StartupService(
         var fileSources = await db.FileSources
                 .AsNoTracking()
                 .Where(fs => fs.IsEnabled)
-                .Select(fs => new { fs.Id, fs.Path, fs.ExcludePattern })
+                .Select(fs => new { fs.Id, fs.Path, fs.ExcludeExtensions })
                 .ToListAsync(cancellationToken);
 
         List<Task> tasks = [];
@@ -87,9 +87,9 @@ public class StartupService(
                 continue;
             }
 
-            logger.WatchDirectoryStarted(fileSource.Path, fileSource.ExcludePattern ?? "");
+            logger.WatchDirectoryStarted(fileSource.Path, fileSource.ExcludeExtensions ?? "");
             var watcher = new DirectoryWatcher(directoryWatcherLogger, fileArrivalChannel, cancellationToken);
-            tasks.Add(watcher.StartWatchingAsync(fileSource.Path, fileSource.ExcludePattern));
+            tasks.Add(watcher.StartWatchingAsync(fileSource.Path, fileSource.ExcludeExtensions));
         }
 
         await Task.WhenAll(tasks);
