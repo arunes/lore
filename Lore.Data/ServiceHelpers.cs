@@ -1,3 +1,4 @@
+using Lore.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,8 +8,9 @@ public static class ServiceHelpers
 {
     public static IServiceCollection AddDataServices(this IServiceCollection services)
     {
+        LorePaths.EnsureDirectories();
         var dbPath =
-            $"Data Source={GetDatabasePath()};Cache=Shared;Mode=ReadWriteCreate;Pooling=True;";
+            $"Data Source={LorePaths.DatabasePath};Cache=Shared;Mode=ReadWriteCreate;Pooling=True;";
         
         services.AddDbContext<LoreDbContext>(options =>
             options.UseSqlite(dbPath).UseSnakeCaseNamingConvention()
@@ -19,18 +21,5 @@ public static class ServiceHelpers
         );
 
         return services.AddHostedService<DbInitializerHostedService>();
-    }
-
-    private static string GetDatabasePath()
-    {
-        string fileName = "lore.db";
-
-#if DEBUG
-        string baseDir = AppContext.BaseDirectory;
-        string solutionRoot = Path.GetFullPath(Path.Combine(baseDir, @"../../../.."));
-        return Path.Combine(solutionRoot, fileName);
-#else
-        return Path.Combine(AppContext.BaseDirectory, fileName);
-#endif
     }
 }

@@ -1,3 +1,4 @@
+using Lore.Common;
 using Lore.Common.Models;
 using Lore.Core.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,8 +13,8 @@ public static class OcrRegistration
         return services.AddSingleton(sp =>
         {
             var userSettings = sp.GetRequiredService<IUserSettingsService>();
-            var modelsRoot = userSettings.GetSetting<string>(UserSettingsType.OCRModelsRootPath);
-            var modelsPath = Path.Combine(modelsRoot, "models", "v5");
+            LorePaths.EnsureOcrModels();
+            string modelsDir = LorePaths.OcrModelsDir;
 
             var detFileName = userSettings.GetSetting<string>(UserSettingsType.OCRModelsDetFileName);
             var clsFileName = userSettings.GetSetting<string>(UserSettingsType.OCRModelsClsFileName);
@@ -22,10 +23,10 @@ public static class OcrRegistration
 
             var ocr = new RapidOcr();
             ocr.InitModels(
-                detPath: Path.Combine(modelsPath, detFileName),
-                clsPath: Path.Combine(modelsPath, clsFileName),
-                recPath: Path.Combine(modelsPath, recFileName),
-                keysPath: Path.Combine(modelsPath, keysFileName)
+                detPath: Path.Combine(modelsDir, detFileName),
+                clsPath: Path.Combine(modelsDir, clsFileName),
+                recPath: Path.Combine(modelsDir, recFileName),
+                keysPath: Path.Combine(modelsDir, keysFileName)
             );
 
             return ocr;

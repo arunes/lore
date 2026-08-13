@@ -19,4 +19,22 @@
   <ItemGroup>
     <ProjectReference Include="../Lore.Core/Lore.Core.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <RapidOcrModelDir>$(NuGetPackageRoot)rapidocrnet/3.0.0/models/v5/</RapidOcrModelDir>
+  </PropertyGroup>
+
+  <Target Name="CopyRapidOcrModels" AfterTargets="Build" Condition="Exists('$(RapidOcrModelDir)')">
+    <ItemGroup>
+      <_RapidOcrModelFiles Include="$(RapidOcrModelDir)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RapidOcrModelFiles)" DestinationFolder="$(TargetDir)models/v5/" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyRapidOcrModelsPublish" AfterTargets="Publish" Condition="Exists('$(RapidOcrModelDir)')">
+    <ItemGroup>
+      <_RapidOcrModelPublishFiles Include="$(RapidOcrModelDir)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RapidOcrModelPublishFiles)" DestinationFolder="$(PublishDir)models/v5/" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -1,0 +1,25 @@
+# Git / local
+.git
+.gitignore
+LICENSE
+README.md
+
+# .NET
+**/bin
+**/obj
+*.user
+
+# Node / UI
+**/node_modules
+**/dist
+
+# Data
+*.db
+*.db-shm
+*.db-wal
+Lore.UI/dist
+smartcomponents/SmartComponents.LocalEmbeddings/.cache
+
+# Logs
+logs
+*.log

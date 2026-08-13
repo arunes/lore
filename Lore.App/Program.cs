@@ -5,11 +5,12 @@ using Lore.Data;
 
 int port = 8081;
 WebApplicationBuilder builder = WebApplication.CreateBuilder();
-builder.WebHost.UseUrls($"https://*:{port}");
+string urls = builder.Configuration["URLS"] ?? $"https://*:{port}";
+builder.WebHost.UseUrls(urls);
 builder.Services.AddOpenApi()
             .AddLoreErrorHandling()
-            .AddLoreCore()
             .AddDataServices()
+            .AddLoreCore()
             .AddMemoryCache();
 
 builder.Services.AddLoreTelemetry(builder.Configuration);
@@ -21,8 +22,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseLoreErrorHandling();
+app.UseStaticFiles();
 app.RegisterRoutes();
+app.MapFallbackToFile("index.html");
 
-Console.WriteLine($"Running web server on {port}...");
+Console.WriteLine($"Running web server on {urls}...");
 await app.RunAsync();
 
