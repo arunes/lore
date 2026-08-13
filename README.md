@@ -19,6 +19,8 @@ Tech stack
 - Aspire Dashboard (observability)
 - React, TypeScript, Vite
 
+"Telemetry:Otlp:Endpoint": "http://localhost:4317",
+
 Features
 - Retrieval-Augmented Generation (RAG) — traditional & agentic
 - 5-stage async file processing pipeline (Channel<T>, BackgroundService)
@@ -37,8 +39,3 @@ Text extractors
 PdfPig, DocumentFormat.OpenXml, NPOI.HWPF, ExcelDataReader, HtmlAgilityPack, RapidOcrNet
 
 
-
-started  6:26:58.432 PM
-finished 6:41:29.782 PM
-
-15 mins

@@ -18,7 +18,7 @@ public class VectorizeService(
     LocalEmbedder embedder
 ) : IChannelService<VectorizeRequest>
 {
-    public int GetBatchSize() => 10;
+    public int GetBatchSize() => 25;
 
     public async Task ProcessAsync(VectorizeRequest request, CancellationToken cancellationToken) =>
         await ProcessBatchAsync([request], cancellationToken);
