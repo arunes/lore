@@ -1,7 +1,8 @@
 using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.EntityFrameworkCore.Metadata;
+
 using Lore.Data.Models;
 
 namespace Lore.Data;
@@ -23,6 +24,11 @@ public partial class LoreDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<FileEntry>(entity =>
+        {
+            entity.HasIndex(f => f.Path).IsUnique();
+        });
+
+        modelBuilder.Entity<FileSource>(entity =>
         {
             entity.HasIndex(f => f.Path).IsUnique();
         });

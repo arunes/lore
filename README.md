@@ -35,3 +35,10 @@ Development
 
 Text extractors
 PdfPig, DocumentFormat.OpenXml, NPOI.HWPF, ExcelDataReader, HtmlAgilityPack, RapidOcrNet
+
+
+
+started  6:26:58.432 PM
+finished 6:41:29.782 PM
+
+15 mins
