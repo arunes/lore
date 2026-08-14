@@ -2,6 +2,7 @@ using Lore.App.Logging;
 using Lore.Common.Models;
 using Lore.Core.RAG;
 using Lore.Core.Settings;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lore.App;
@@ -81,7 +82,7 @@ public static class Routes
                 var updates = new Dictionary<UserSettingsType, string?>();
                 var errors = new Dictionary<string, string[]>();
 
-                foreach (var item in request.Settings)
+                foreach (SettingValue item in request.Settings)
                 {
                     if (!Enum.TryParse(item.Key, out UserSettingsType settingKey))
                     {

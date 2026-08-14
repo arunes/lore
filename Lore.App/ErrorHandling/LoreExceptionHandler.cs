@@ -1,8 +1,10 @@
+using System.Diagnostics;
+
 using Lore.App.Logging;
 using Lore.Core.Settings;
+
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
 
 namespace Lore.App.ErrorHandling;
 

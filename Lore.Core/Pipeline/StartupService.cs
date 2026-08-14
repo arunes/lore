@@ -32,8 +32,9 @@ public class StartupService(
         await userSettings.InitializeAsync(stoppingToken);
         await embeddingCache.InitializeAsync(stoppingToken);
         await ResumeFilesAsync(stoppingToken);
-        WatchDirectoriesAsync(stoppingToken);
         await FullScanDirectoriesAsync(stoppingToken);
+
+        WatchDirectoriesAsync(stoppingToken);
 
         logger.StartupComplete();
     }
