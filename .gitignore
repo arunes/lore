@@ -481,8 +481,7 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# sqlite dbs
-lore.db*
-
 # Lore.App artifacts
+lore.db*
 Lore.App/lore/
+ocr-models/
