@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import {
     Chat01Icon,
     Settings01Icon,
@@ -7,18 +6,15 @@ import {
     Moon01Icon,
     SparklesIcon,
 } from "@hugeicons/core-free-icons";
-import type { IconSvgElement } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/icon";
-import { Chat } from "@/components/Chat";
-import { Settings } from "@/components/Settings";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Toaster } from "sonner";
 
-type View = "chat" | "settings";
-
-const NAV_ITEMS: { id: View; label: string; icon: IconSvgElement }[] = [
-    { id: "chat", label: "Chat", icon: Chat01Icon },
-    { id: "settings", label: "Settings", icon: Settings01Icon },
-];
+const NAV_ITEMS = [
+    { path: "/chat", label: "Chat", icon: Chat01Icon },
+    { path: "/settings", label: "Settings", icon: Settings01Icon },
+] as const;
 
 function Logo() {
     return (
@@ -35,8 +31,9 @@ function Logo() {
 }
 
 export function AppShell() {
-    const [view, setView] = useState<View>("chat");
     const [dark, setDark] = useState(false);
+    const location = useLocation();
+    const currentPath = location.pathname;
 
     useEffect(() => {
         document.documentElement.classList.toggle("dark", dark);
@@ -50,29 +47,31 @@ export function AppShell() {
                 </div>
 
                 <nav className="flex flex-col gap-1 px-2 py-2">
-                    {NAV_ITEMS.map(({ id, label, icon }) => (
-                        <button
-                            key={id}
-                            type="button"
-                            onClick={() => setView(id)}
-                            className={cn(
-                                "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors",
-                                view === id
-                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                            )}
-                        >
-                            <Icon icon={icon} size={18} />
-                            {label}
-                        </button>
-                    ))}
+                    {NAV_ITEMS.map(({ path, label, icon }) => {
+                        const isActive = currentPath.startsWith(path);
+                        return (
+                            <Link
+                                key={path}
+                                to={path}
+                                className={cn(
+                                    "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors",
+                                    isActive
+                                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                )}
+                            >
+                                <Icon icon={icon} size={18} />
+                                {label}
+                            </Link>
+                        );
+                    })}
                 </nav>
             </aside>
 
             <div className="flex flex-1 flex-col overflow-hidden">
                 <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
                     <p className="text-sm font-medium text-muted-foreground">
-                        {NAV_ITEMS.find((item) => item.id === view)?.label}
+                        {NAV_ITEMS.find((item) => currentPath.startsWith(item.path))?.label ?? "Lore"}
                     </p>
                     <button
                         type="button"
@@ -85,17 +84,10 @@ export function AppShell() {
                 </header>
 
                 <main className="min-h-0 flex-1 overflow-hidden">
-                    <ViewSwitcher view={view} />
+                    <Outlet />
                 </main>
             </div>
+            <Toaster position="bottom-right" richColors />
         </div>
     );
-}
-
-function ViewSwitcher({ view }: { view: View }) {
-    const pages: Record<View, ReactNode> = {
-        chat: <Chat />,
-        settings: <Settings />,
-    };
-    return <>{pages[view]}</>;
 }

@@ -16,6 +16,16 @@ const components: Components = {
             </a>
         );
     },
+    pre({ children, ...props }) {
+        return (
+            <pre
+                className="my-2 max-w-full overflow-x-auto overflow-y-hidden whitespace-pre p-3"
+                {...props}
+            >
+                {children}
+            </pre>
+        );
+    },
 };
 
 export function Markdown({

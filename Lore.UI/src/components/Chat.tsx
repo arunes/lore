@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { streamChat, ApiError } from "@/api/chatApi";
 import {
@@ -13,8 +13,9 @@ import { Icon } from "./ui/icon";
 import { ErrorMessage } from "./ui/error-message";
 import { Markdown } from "./ui/markdown";
 import { cn } from "@/lib/utils";
+import { useChat } from "@/chat/ChatContext";
 
-type Message = {
+export type Message = {
     id: string;
     role: string;
     content: string;
@@ -38,10 +39,20 @@ function toApiError(error: unknown): ApiError {
 }
 
 export function Chat() {
-    const [activeChatId, setActiveChatId] = useState<string | null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const { messages, setMessages, activeChatId, setActiveChatId } = useChat();
     const [input, setInput] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const nearBottom =
+            viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 72;
+        if (nearBottom) {
+            viewport.scrollTop = viewport.scrollHeight;
+        }
+    }, [messages, isStreaming]);
 
     const streamMutation = useMutation({
         mutationFn: async ({
@@ -163,7 +174,10 @@ export function Chat() {
                     </div>
                 </div>
             ) : (
-                <ScrollArea className="min-h-0 flex-1 px-4 py-6">
+                <ScrollArea
+                    viewportRef={viewportRef}
+                    className="min-h-0 flex-1 px-4 py-6"
+                >
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
                         {messages.map((m, idx) => {
                             const isUser = m.role === "user";
