@@ -1,3 +1,8 @@
+---
+name: vector-data-and-schema
+description: Guides Lore relational schema changes, EF Core migrations, SQLite FTS5 and sqlite-vec lifecycle, vector dimensions, transactions, and persistence verification.
+---
+
 # Skill: Vector Data, SQLite Schema, and Persistence
 
 ## Skill Name & Purpose

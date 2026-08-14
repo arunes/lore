@@ -1,3 +1,8 @@
+---
+name: hybrid-retrieval
+description: Guides safe SQLite FTS5 and sqlite-vec search, query normalization, weighted reciprocal rank fusion, and document-chunk hydration in Lore.
+---
+
 # Skill: Hybrid Retrieval and Vector Store
 
 ## Skill Name & Purpose

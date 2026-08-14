@@ -1,3 +1,8 @@
+---
+name: rag-orchestration
+description: Guides Lore chat backend selection, retrieval-augmented prompt assembly, Semantic Kernel tools, OpenAI-compatible clients, streaming, fallbacks, and chat caching.
+---
+
 # Skill: RAG Orchestration and LLM Streaming
 
 ## Skill Name & Purpose

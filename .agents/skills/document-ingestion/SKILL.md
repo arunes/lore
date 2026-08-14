@@ -1,3 +1,8 @@
+---
+name: document-ingestion
+description: Guides file discovery, filesystem event handling, extractor selection, text normalization, deduplication, and durable ingestion handoff in Lore.
+---
+
 # Skill: Document Ingestion and Extraction
 
 ## Skill Name & Purpose

@@ -1,3 +1,8 @@
+---
+name: chunking-and-embedding
+description: Guides deterministic document chunking, local embedding generation, vector replacement, and searchable-state transitions in the Lore ingestion pipeline.
+---
+
 # Skill: Chunking and Embedding Pipeline
 
 ## Skill Name & Purpose
