@@ -18,6 +18,8 @@ public sealed record SettingDefinition(
     string Description,
     SettingWidget Widget,
     bool IsSecret = false,
+    bool IsRequired = false,
+    bool IsNullable = false,
     double? Min = null,
     double? Max = null,
     double? Step = null,
@@ -45,21 +47,22 @@ public static class SettingsCatalog
         new(
             UserSettingsType.AIBackendAPIKey,
             typeof(string),
-            "lm-studio",
+            null,
             UserSettingGroup.AISettings,
             "AI Backend API Key",
-            "API key or token used to authenticate with the AI backend. LM Studio ignores authentication, so the default `lm-studio` is a placeholder; use a real key for hosted providers.",
+            "API key or token used to authenticate with the AI backend. LM Studio ignores authentication, so it can be left blank for local models; a real key is needed for hosted providers.",
             SettingWidget.Password,
             IsSecret: true),
 
         new(
             UserSettingsType.AIBackendAPIModel,
             typeof(string),
-            "qwen/qwen3-14b",
+            null,
             UserSettingGroup.AISettings,
             "AI Backend Model",
-            "Model identifier sent with every chat request, e.g. `qwen/qwen3-14b`.",
-            SettingWidget.Text),
+            "Model identifier sent with every chat request. This must match a model your backend offers; there is no default. Required before chatting.",
+            SettingWidget.Text,
+            IsRequired: true),
 
         new(
             UserSettingsType.AIBackendRAGService,
@@ -274,8 +277,9 @@ public static class SettingsCatalog
             0.1f,
             UserSettingGroup.SearchSettings,
             "Chat Temperature",
-            "Sampling temperature used for chat completions. Lower values are more deterministic.",
+            "Sampling temperature used for chat completions (0–2; values above 1 are more creative). Check \"Not set\" to omit the parameter for models that don't support it.",
             SettingWidget.Number,
+            IsNullable: true,
             Min: 0,
             Max: 2,
             Step: 0.1),
@@ -286,8 +290,9 @@ public static class SettingsCatalog
             0.1f,
             UserSettingGroup.SearchSettings,
             "Retrieval Query Temperature",
-            "Sampling temperature used when generating the retrieval query.",
+            "Sampling temperature used when generating the retrieval query. Check \"Not set\" to omit the parameter for models that don't support it.",
             SettingWidget.Number,
+            IsNullable: true,
             Min: 0,
             Max: 2,
             Step: 0.1),
@@ -298,7 +303,7 @@ public static class SettingsCatalog
             "ch_PP-OCRv5_mobile_det.onnx",
             UserSettingGroup.OCRSettings,
             "OCR Detection Model",
-            "Detection model filename (`*_det.onnx`) in the models folder. Point at a bundled file or drop your own from the RapidOCR model list into the models folder.",
+            "Detection model filename (`*_det.onnx`) in the models folder. You can [download models](https://github.com/RapidAI/RapidOCR/blob/main/python/rapidocr/default_models.yaml) from the RapidOCR model list and drop them into the models folder.",
             SettingWidget.Text),
 
         new(
@@ -307,7 +312,7 @@ public static class SettingsCatalog
             "ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx",
             UserSettingGroup.OCRSettings,
             "OCR Classification Model",
-            "Classification model filename (`*_cls.onnx`). Custom models can be added to the models folder.",
+            "Classification model filename (`*_cls.onnx`) in the models folder. Custom models from the [RapidOCR model list](https://github.com/RapidAI/RapidOCR/blob/main/python/rapidocr/default_models.yaml) can be added to the models folder.",
             SettingWidget.Text),
 
         new(
@@ -316,7 +321,7 @@ public static class SettingsCatalog
             "latin_PP-OCRv5_rec_mobile_infer.onnx",
             UserSettingGroup.OCRSettings,
             "OCR Recognition Model",
-            "Recognition model filename (`*_rec.onnx`). Custom models can be added to the models folder.",
+            "Recognition model filename (`*_rec.onnx`) in the models folder. Custom models from the [RapidOCR model list](https://github.com/RapidAI/RapidOCR/blob/main/python/rapidocr/default_models.yaml) can be added to the models folder.",
             SettingWidget.Text),
 
         new(

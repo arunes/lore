@@ -1,6 +1,7 @@
 using Lore.Common.Models;
 using Lore.Core.Logging;
 using Lore.Data;
+using Lore.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -12,17 +13,59 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
 
     public T GetSetting<T>(UserSettingsType settingsType)
     {
-        if (!_settings.TryGetValue(settingsType, out string? value))
-        {
-            value = SettingsCatalog.ByKey(settingsType).DefaultValue!.ToString();
-        }
+        string? value = GetResolvedValue(settingsType);
 
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new KeyNotFoundException($"The value of {settingsType} setting cannot be empty!");
+            var definition = SettingsCatalog.ByKey(settingsType);
+            if (definition.IsRequired)
+            {
+                throw new MissingRequiredSettingException(settingsType, definition.DisplayName);
+            }
+
+            return default!;
         }
 
         return ConvertValue<T>(value);
+    }
+
+    public string? GetResolvedValue(UserSettingsType settingsType)
+    {
+        if (_settings.TryGetValue(settingsType, out string? value))
+        {
+            return value;
+        }
+
+        return SettingsCatalog.ByKey(settingsType).DefaultValue?.ToString();
+    }
+
+    public async Task SaveAsync(IReadOnlyDictionary<UserSettingsType, string?> values, CancellationToken cancellationToken)
+    {
+        foreach (var (settingKey, value) in values)
+        {
+            var definition = SettingsCatalog.ByKey(settingKey);
+            if (definition.IsRequired && string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException(
+                    $"Setting '{definition.DisplayName}' ({settingKey}) is required and cannot be empty.",
+                    nameof(values));
+            }
+
+            string key = settingKey.ToString();
+            Setting? existing = await dbContext.Settings.FindAsync([key], cancellationToken);
+            if (existing is null)
+            {
+                dbContext.Settings.Add(new Setting { Key = key, Value = value });
+            }
+            else
+            {
+                existing.Value = value;
+            }
+
+            _settings[settingKey] = value;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)

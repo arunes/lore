@@ -1,6 +1,8 @@
 using Lore.App.Logging;
 using Lore.Common.Models;
 using Lore.Core.RAG;
+using Lore.Core.Settings;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Lore.App;
 
@@ -34,6 +36,69 @@ public static class Routes
                     await response.WriteAsync(token, cancellationToken);
                     await response.Body.FlushAsync(cancellationToken);
                 }
+            }
+        );
+
+        apiGroup.MapGet(
+            "settings",
+            (IUserSettingsService userSettings) =>
+            {
+                var groups = SettingsCatalog.All
+                    .GroupBy(d => d.Group)
+                    .Select(group => new SettingsGroup(
+                        group.Key.ToString(),
+                        group.Select(d => new SettingMetadata(
+                            d.Key.ToString(),
+                            d.DisplayName,
+                            d.Description,
+                            d.Group.ToString(),
+                            d.Widget.ToString(),
+                            d.IsSecret,
+                            d.IsRequired,
+                            d.IsNullable,
+                            d.Min,
+                            d.Max,
+                            d.Step,
+                            userSettings.GetResolvedValue(d.Key),
+                            d.DefaultValue?.ToString(),
+                            d.Values,
+                            HasOverride: userSettings.GetResolvedValue(d.Key) != d.DefaultValue?.ToString()
+                        )).ToList()))
+                    .ToList();
+
+                return Results.Ok(new SettingsResponse(groups));
+            }
+        );
+
+        apiGroup.MapPut(
+            "settings",
+            async (
+                SettingsRequest request,
+                IUserSettingsService userSettings,
+                CancellationToken cancellationToken
+            ) =>
+            {
+                var updates = new Dictionary<UserSettingsType, string?>();
+                var errors = new Dictionary<string, string[]>();
+
+                foreach (var item in request.Settings)
+                {
+                    if (!Enum.TryParse(item.Key, out UserSettingsType settingKey))
+                    {
+                        errors[item.Key] = [$"Unknown setting '{item.Key}'."];
+                        continue;
+                    }
+
+                    updates[settingKey] = item.Value;
+                }
+
+                if (errors.Count > 0)
+                {
+                    return Results.ValidationProblem(errors);
+                }
+
+                await userSettings.SaveAsync(updates, cancellationToken);
+                return Results.NoContent();
             }
         );
 

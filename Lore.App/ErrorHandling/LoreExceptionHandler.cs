@@ -1,4 +1,5 @@
 using Lore.App.Logging;
+using Lore.Core.Settings;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
@@ -23,6 +24,32 @@ public sealed class LoreExceptionHandler(
         }
 
         string traceId = Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier;
+
+        if (exception is MissingRequiredSettingException missing)
+        {
+            logger.UnhandledException(exception, traceId);
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            httpContext.Response.Headers["X-Correlation-Id"] = traceId;
+
+            return await problemDetailsService.TryWriteAsync(
+                new ProblemDetailsContext
+                {
+                    HttpContext = httpContext,
+                    Exception = exception,
+                    ProblemDetails = new ProblemDetails
+                    {
+                        Status = StatusCodes.Status400BadRequest,
+                        Title = "Missing required setting",
+                        Detail = missing.Message,
+                        Extensions =
+                        {
+                            ["setting"] = missing.Setting.ToString(),
+                            ["traceId"] = traceId,
+                        },
+                    },
+                }
+            );
+        }
 
         logger.UnhandledException(exception, traceId);
 

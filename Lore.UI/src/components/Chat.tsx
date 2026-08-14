@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Icon } from "./ui/icon";
 import { ErrorMessage } from "./ui/error-message";
+import { Markdown } from "./ui/markdown";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -166,6 +167,10 @@ export function Chat() {
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
                         {messages.map((m, idx) => {
                             const isUser = m.role === "user";
+                            const isStreamingMessage =
+                                m.role === "assistant" &&
+                                isStreaming &&
+                                idx === messages.length - 1;
 
                             if (m.error) {
                                 return (
@@ -212,21 +217,35 @@ export function Chat() {
                                     </div>
                                     <div
                                         className={cn(
-                                            "max-w-[75%] whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
+                                            "max-w-[75%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
                                             isUser
                                                 ? "bg-primary text-primary-foreground"
                                                 : "bg-muted text-foreground"
                                         )}
                                     >
-                                        {m.content ||
-                                            (isStreaming &&
-                                            idx === messages.length - 1 ? (
+                                        {isUser ? (
+                                            <span className="whitespace-pre-wrap">
+                                                {m.content}
+                                            </span>
+                                        ) : m.content ? (
+                                            isStreamingMessage ? (
+                                                <span className="whitespace-pre-wrap">
+                                                    {m.content}
+                                                </span>
+                                            ) : (
+                                                <Markdown className="text-sm/relaxed leading-relaxed text-foreground [&_code]:bg-foreground/10 [&_p:not(:last-child)]:mb-3">
+                                                    {m.content}
+                                                </Markdown>
+                                            )
+                                        ) : (
+                                            isStreamingMessage && (
                                                 <span className="inline-flex gap-1">
                                                     <span className="size-1.5 animate-bounce rounded-full bg-current" />
                                                     <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:120ms]" />
                                                     <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:240ms]" />
                                                 </span>
-                                            ) : null)}
+                                            )
+                                        )}
                                     </div>
                                 </div>
                             );

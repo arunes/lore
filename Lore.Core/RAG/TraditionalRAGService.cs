@@ -136,7 +136,7 @@ public class TraditionalRAGService(
         {
             var chatOptions = new ChatOptions
             {
-                Temperature = userSettings.GetSetting<float>(UserSettingsType.ChatTemperature),
+                Temperature = userSettings.GetSetting<float?>(UserSettingsType.ChatTemperature),
                 Reasoning = new ReasoningOptions
                 {
                     Effort = ReasoningEffort.None
@@ -224,7 +224,7 @@ public class TraditionalRAGService(
                         schema: AIJsonUtilities.CreateJsonSchema(typeof(RetrievalQuery)),
                         schemaName: "retrieval_query"
                     ),
-                Temperature = userSettings.GetSetting<float>(UserSettingsType.RetrievalQueryTemperature),
+                Temperature = userSettings.GetSetting<float?>(UserSettingsType.RetrievalQueryTemperature),
                 Reasoning = new ReasoningOptions
                 {
                     Effort = ReasoningEffort.None

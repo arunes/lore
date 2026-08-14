@@ -72,7 +72,7 @@ public class AgenticRAGService(
             var executionSettings = new OpenAIPromptExecutionSettings
             {
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                Temperature = userSettings.GetSetting<float>(UserSettingsType.ChatTemperature)
+                Temperature = userSettings.GetSetting<float?>(UserSettingsType.ChatTemperature)
             };
 
             responseStream = chatCompletion.GetStreamingChatMessageContentsAsync(
