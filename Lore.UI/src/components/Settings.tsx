@@ -27,6 +27,11 @@ const GROUP_LABELS: Record<string, string> = {
 
 type Values = Record<string, string | null>;
 
+function normalizeValue(setting: Setting, raw: string | null): string | null {
+    if (raw == null) return null;
+    return setting.widget === "Checkbox" ? raw.toLowerCase() : raw;
+}
+
 function SettingField({
     setting,
     value,
@@ -39,6 +44,44 @@ function SettingField({
     const invalid = setting.isRequired && !value?.trim();
     const valueKey = setting.key;
     const isNull = setting.isNullable && value == null;
+
+    if (setting.widget === "Checkbox") {
+        const checked = value != null && /^true$/i.test(value);
+        const defaultOn = /^true$/i.test(setting.defaultValue ?? "false");
+        return (
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id={`setting-${valueKey}`}
+                            checked={checked}
+                            onCheckedChange={(next) =>
+                                onChange(valueKey, next ? "true" : "false")
+                            }
+                        />
+                        <Label htmlFor={`setting-${valueKey}`}>
+                            {setting.displayName}
+                            {setting.isRequired && (
+                                <span className="text-destructive" aria-hidden>
+                                    {" "}
+                                    *
+                                </span>
+                            )}
+                        </Label>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => onChange(valueKey, defaultOn ? "true" : "false")}
+                    >
+                        Reset
+                    </Button>
+                </div>
+                <Markdown>{setting.description}</Markdown>
+            </div>
+        );
+    }
 
     const control =
         setting.widget === "TextArea" ? (
@@ -155,7 +198,7 @@ export function Settings() {
             for (const group of settingsQuery.data.groups) {
                 for (const setting of group.settings) {
                     if (!(setting.key in next)) {
-                        next[setting.key] = setting.value;
+                        next[setting.key] = normalizeValue(setting, setting.value);
                     }
                 }
             }
@@ -166,7 +209,13 @@ export function Settings() {
 
     const dirtyKeys = useMemo(
         () =>
-            allSettings.filter((s) => values[s.key] !== s.value).map((s) => s.key),
+            allSettings
+                .filter(
+                    (s) =>
+                        normalizeValue(s, values[s.key]) !==
+                        normalizeValue(s, s.value)
+                )
+                .map((s) => s.key),
         [allSettings, values]
     );
 
@@ -281,7 +330,10 @@ export function Settings() {
                                 setValues((prev) => {
                                     const next: Values = { ...prev };
                                     for (const setting of allSettings) {
-                                        next[setting.key] = setting.defaultValue;
+                                        next[setting.key] = normalizeValue(
+                                            setting,
+                                            setting.defaultValue
+                                        );
                                     }
                                     return next;
                                 })

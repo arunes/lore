@@ -16,17 +16,3 @@ public sealed record SettingMetadata(
     string? DefaultValue,
     IReadOnlyList<string> ValidValues,
     bool HasOverride);
-
-public sealed record SettingsGroup(
-    string Group,
-    IReadOnlyList<SettingMetadata> Settings);
-
-public sealed record SettingsResponse(
-    IReadOnlyList<SettingsGroup> Groups);
-
-public sealed record SettingValue(
-    string Key,
-    string? Value);
-
-public sealed record SettingsRequest(
-    IReadOnlyList<SettingValue> Settings);

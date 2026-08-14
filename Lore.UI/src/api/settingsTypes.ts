@@ -3,7 +3,8 @@ export type SettingWidget =
   | "Password"
   | "TextArea"
   | "Number"
-  | "Select";
+  | "Select"
+  | "Checkbox";
 
 export type Setting = {
   key: string;

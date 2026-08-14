@@ -1,13 +1,19 @@
 using System.ComponentModel;
+
 using Lore.Common.Models;
 using Lore.Data;
 using Lore.Core.Retrieval;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
+using Lore.Core.Settings;
 
 namespace Lore.Core.RAG;
 
-public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext dbContext)
+public class KernelRetrievalTools(
+    IRetrievalService searchTools,
+    LoreDbContext dbContext,
+    IUserSettingsService userSettings)
 {
     public record SearchFilesByNameResponse(
         int Id,
@@ -16,12 +22,33 @@ public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext d
         string? Category,
         string? DocumentType);
 
+    public record DirectoryListingItem(
+        int? FileId,
+        string Name,
+        string Path,
+        bool IsDirectory,
+        string? Extension,
+        long? SizeBytes);
+
+    public record FileMetadataDto(
+        int Id,
+        string Name,
+        string Path,
+        string? Category,
+        string? DocumentType,
+        DateTime? ModifiedAt);
+
     [KernelFunction]
     [Description("Searches the contents of indexed files by topic, keywords, or natural language query. Use this to find relevant files or documents when you don't know the exact file name.")]
     public async Task<List<DocumentChunkFile>> SearchFileContentsAsync(
         [Description("The search query terms or natural language topic.")] RetrievalQuery query,
         CancellationToken cancellationToken = default)
     {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsSearchFileContents))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Search File Contents` tool in settings.");
+        }
+
         var chunkIds = await searchTools.RetrieveDocumentChunksAsync(query, cancellationToken);
         return await searchTools.GetChunkContentsAsync(chunkIds, cancellationToken);
     }
@@ -32,15 +59,20 @@ public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext d
         [Description("The exact or partial file name (e.g., 'report.pdf', 'budget').")] string fileName,
         CancellationToken cancellationToken = default)
     {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsSearchFilesByName))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Search Files by Name` tool in settings.");
+        }
+
         return await dbContext
             .Files
             .AsNoTracking()
             .Where(fl => fl.Path.Contains(fileName))
             .Select(fl => new SearchFilesByNameResponse(
-                fl.Id, 
-                fl.Name, 
-                fl.Directory, 
-                fl.PrimaryCategory != null ? fl.PrimaryCategory.Name : null, 
+                fl.Id,
+                fl.Name,
+                fl.Directory,
+                fl.PrimaryCategory != null ? fl.PrimaryCategory.Name : null,
                 fl.DocumentType != null ? fl.DocumentType.Name : null))
             .ToListAsync(cancellationToken);
     }
@@ -51,6 +83,11 @@ public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext d
         [Description("The exact path of the file to read.")] string filePath,
         CancellationToken cancellationToken = default)
     {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsGetFullFileContent))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Get Full File Content` tool in settings.");
+        }
+
         var hasPermission = await dbContext
             .FileSources
             .AsNoTracking()
@@ -79,5 +116,111 @@ public class KernelRetrievalTools(IRetrievalService searchTools, LoreDbContext d
         }
 
         return dbFileContent;
+    }
+
+    [KernelFunction]
+    [Description("Lists files and subdirectories within a given folder path. Use this to inspect what files or sub-folders exist inside a directory.")]
+    public async Task<List<DirectoryListingItem>> GetDirectoryContentsAsync(
+        [Description("The absolute or relative directory path to list (e.g., 'C:\\Docs\\Finance' or '/projects/alpha').")] string folderPath,
+        CancellationToken cancellationToken = default)
+    {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsGetDirectoryContents))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Get Directory Contents` tool in settings.");
+        }
+
+        var isAllowed = await dbContext.FileSources
+            .AsNoTracking()
+            .AnyAsync(fs => fs.IsEnabled && folderPath.StartsWith(fs.Path), cancellationToken);
+
+        if (!isAllowed)
+        {
+            return [];
+        }
+
+        return await dbContext.Files
+            .AsNoTracking()
+            .Where(f => f.Directory == folderPath)
+            .Select(f => new DirectoryListingItem(
+                f.Id, f.Name, f.Path, false, f.Extension, f.Size))
+            .ToListAsync(cancellationToken);
+    }
+
+    [KernelFunction]
+    [Description("Finds directory paths matching a given folder name or keyword. Use when the user refers to a specific folder or location.")]
+    public async Task<List<string>> SearchDirectoriesByNameAsync(
+        [Description("The partial or exact name of the directory/folder (e.g., 'Invoices', '2024').")] string directoryKeyword,
+        CancellationToken cancellationToken = default)
+    {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsSearchDirectoriesByName))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Tools Search Directories by Name` tool in settings.");
+        }
+
+        return await dbContext.Files
+            .AsNoTracking()
+            .Where(f => f.Directory.Contains(directoryKeyword))
+            .Select(f => f.Directory)
+            .Distinct()
+            .Take(20)
+            .ToListAsync(cancellationToken);
+    }
+
+    [KernelFunction]
+    [Description("Filters files by category, document type, file extension, or date range. Use for structural or metadata queries.")]
+    public async Task<List<FileMetadataDto>> GetFilesByMetadataAsync(
+        [Description("Optional category filter.")] string? categoryName = null,
+        [Description("Optional document type filter.")] string? documentTypeName = null,
+        [Description("Optional extension filter (e.g. '.pdf', '.docx').")] string? extension = null,
+        [Description("Limit maximum results returned.")] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsGetFilesByMetadata))
+        {
+            throw new Exception("Tool is disabled. User can enable the `Get Files by Metadata` tool in settings.");
+        }
+
+        var query = dbContext.Files.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(categoryName))
+        {
+            query = query.Where(f => f.PrimaryCategory != null && f.PrimaryCategory.Name.Contains(categoryName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(documentTypeName))
+        {
+            query = query.Where(f => f.DocumentType != null && f.DocumentType.Name.Contains(documentTypeName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(extension))
+        {
+            query = query.Where(f => f.Extension == extension);
+        }
+
+        return await query
+            .Take(limit)
+            .Select(f => new FileMetadataDto(
+                f.Id,
+                f.Name,
+                f.Path,
+                f.PrimaryCategory != null ? f.PrimaryCategory.Name : null,
+                f.DocumentType != null ? f.DocumentType.Name : null,
+                f.FileModifiedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    [KernelFunction]
+    [Description("Retrieves all valid categories and document types available in the system. Use before filtering files by metadata.")]
+    public async Task<object> ListAvailableCategoriesAndTypesAsync(CancellationToken cancellationToken = default)
+    {
+        if (!userSettings.GetSetting<bool>(UserSettingsType.ToolsListAvailableCategoriesAndTypes))
+        {
+            throw new Exception("Tool is disabled. User can enable the `List Available Categories and Types` tool in settings.");
+        }
+
+        var categories = await dbContext.PrimaryCategories.AsNoTracking().Select(c => c.Name).ToListAsync(cancellationToken);
+        var docTypes = await dbContext.DocumentTypes.AsNoTracking().Select(dt => dt.Name).ToListAsync(cancellationToken);
+
+        return new { Categories = categories, DocumentTypes = docTypes };
     }
 }

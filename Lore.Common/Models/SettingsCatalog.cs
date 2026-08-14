@@ -7,6 +7,7 @@ public enum SettingWidget
     TextArea,
     Number,
     Select,
+    Checkbox,
 }
 
 public sealed record SettingDefinition(
@@ -331,7 +332,70 @@ public static class SettingsCatalog
             UserSettingGroup.OCRSettings,
             "OCR Dictionary / Keys",
             "Dictionary (`*.txt`) file used by the recognition model to map predictions to characters.",
-            SettingWidget.Text),
+            SettingWidget.Text),   
+
+        new(
+            UserSettingsType.ToolsSearchFileContents,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Search File Contents",
+            "Searches the contents of indexed files by topic, keywords, or natural language query.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsSearchFilesByName,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Search Files by Name",
+            "Finds file paths by matching text in the file name or folder path string.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsGetFullFileContent,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Get Full File Content",
+            "Retrieves the full text content of a file located at the specified file path.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsGetDirectoryContents,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Get Directory Contents",
+            "Lists files and subdirectories within a given folder path.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsSearchDirectoriesByName,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Search Directories by Name",
+            "Finds directory paths matching a given folder name or keyword.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsGetFilesByMetadata,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "Get Files by Metadata",
+            "Filters files by category, document type, file extension, or date range.",
+            SettingWidget.Checkbox),
+
+        new(
+            UserSettingsType.ToolsListAvailableCategoriesAndTypes,
+            typeof(bool),
+            true,
+            UserSettingGroup.Tools,
+            "List Available Categories and Types",
+            "Retrieves all valid categories and document types available in the system.",
+            SettingWidget.Checkbox),
     ];
 
     public static SettingDefinition ByKey(UserSettingsType key)

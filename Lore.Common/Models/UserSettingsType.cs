@@ -5,6 +5,7 @@ public enum UserSettingGroup
     AISettings,
     OCRSettings,
     SearchSettings,
+    Tools
 }
 
 public enum UserSettingsType
@@ -40,4 +41,19 @@ public enum UserSettingsType
     OCRModelsRecFileName,
 
     OCRModelsKeysFileName,
+
+    ToolsSearchFileContents,
+
+    ToolsSearchFilesByName,
+
+    ToolsGetFullFileContent,
+
+    ToolsGetDirectoryContents,
+
+    ToolsSearchDirectoriesByName,
+
+    ToolsGetFilesByMetadata,
+
+    ToolsListAvailableCategoriesAndTypes
+
 }

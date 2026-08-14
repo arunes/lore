@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # sqlite dbs
 lore.db*
+
+# Lore.App artifacts
+Lore.App/lore/
