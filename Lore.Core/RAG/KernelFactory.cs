@@ -21,7 +21,7 @@ public class KernelFactory(
         var builder = Kernel.CreateBuilder();
         builder.AddOpenAIChatCompletion(model, new Uri(endpoint), apiKey);
 
-        var searchTools = serviceProvider.GetRequiredService<KernelRetrievalTools>();
+        var searchTools = serviceProvider.GetRequiredService<RetrievalTools>();
         builder.Plugins.AddFromObject(searchTools, pluginName: "RetrievalTools");
 
         var kernel = builder.Build();

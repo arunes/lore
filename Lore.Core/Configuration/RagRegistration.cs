@@ -16,7 +16,7 @@ public static class RagRegistration
             .AddSingleton<IRetrievalService, RetrievalService>()
             .AddSingleton<IRAGFactory, RAGFactory>()
             .AddScoped<IKernelFactory, KernelFactory>()
-            .AddScoped<KernelRetrievalTools>()
+            .AddScoped<RetrievalTools>()
             .AddScoped<AgenticRAGService>()
             .AddKeyedTransient<IRAGService, TraditionalRAGService>(
                 AIBackendRAGServiceType.Traditional

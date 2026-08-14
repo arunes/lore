@@ -10,6 +10,7 @@ public static class CoreServicesRegistration
         return services
             .AddSingleton<IUserSettingsService, UserSettingsService>()
             .AddOcrServices()
+            .AddMCPServices()
             .AddTextExtractors()
             .AddRagServices()
             .AddPipelineServices();

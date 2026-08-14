@@ -7,10 +7,12 @@ using Lore.Core.Retrieval;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Lore.Core.Settings;
+using ModelContextProtocol.Server;
 
 namespace Lore.Core.RAG;
 
-public class KernelRetrievalTools(
+[McpServerToolType]
+public class RetrievalTools(
     IRetrievalService searchTools,
     LoreDbContext dbContext,
     IUserSettingsService userSettings)
@@ -39,6 +41,7 @@ public class KernelRetrievalTools(
         DateTime? ModifiedAt);
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Searches the contents of indexed files by topic, keywords, or natural language query. Use this to find relevant files or documents when you don't know the exact file name.")]
     public async Task<List<DocumentChunkFile>> SearchFileContentsAsync(
         [Description("The search query terms or natural language topic.")] RetrievalQuery query,
@@ -54,6 +57,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Finds file paths by matching text in the file name or folder path string. Use when the user gives a specific file name or extension.")]
     public async Task<List<SearchFilesByNameResponse>> SearchFilesByNameAsync(
         [Description("The exact or partial file name (e.g., 'report.pdf', 'budget').")] string fileName,
@@ -78,6 +82,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Retrieves the full text content of a file located at the specified file path.")]
     public async Task<string> GetFullFileContentAsync(
         [Description("The exact path of the file to read.")] string filePath,
@@ -119,6 +124,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Lists files and subdirectories within a given folder path. Use this to inspect what files or sub-folders exist inside a directory.")]
     public async Task<List<DirectoryListingItem>> GetDirectoryContentsAsync(
         [Description("The absolute or relative directory path to list (e.g., 'C:\\Docs\\Finance' or '/projects/alpha').")] string folderPath,
@@ -147,6 +153,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Finds directory paths matching a given folder name or keyword. Use when the user refers to a specific folder or location.")]
     public async Task<List<string>> SearchDirectoriesByNameAsync(
         [Description("The partial or exact name of the directory/folder (e.g., 'Invoices', '2024').")] string directoryKeyword,
@@ -167,6 +174,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Filters files by category, document type, file extension, or date range. Use for structural or metadata queries.")]
     public async Task<List<FileMetadataDto>> GetFilesByMetadataAsync(
         [Description("Optional category filter.")] string? categoryName = null,
@@ -210,6 +218,7 @@ public class KernelRetrievalTools(
     }
 
     [KernelFunction]
+    [McpServerTool]
     [Description("Retrieves all valid categories and document types available in the system. Use before filtering files by metadata.")]
     public async Task<object> ListAvailableCategoriesAndTypesAsync(CancellationToken cancellationToken = default)
     {

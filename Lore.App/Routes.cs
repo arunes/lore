@@ -103,6 +103,7 @@ public static class Routes
             }
         );
 
+        app.MapMcp("/mcp");
         return app;
     }
 }
