@@ -1,5 +1,9 @@
 import { ApiError } from "./chatApi";
-import type { SettingsRequest, SettingsResponse } from "./settingsTypes";
+import type {
+    SettingsPreset,
+    SettingsRequest,
+    SettingsResponse,
+} from "./settingsTypes";
 
 async function throwError(response: Response): Promise<never> {
     const text = await response.text();
@@ -47,4 +51,14 @@ export async function saveSettings(request: SettingsRequest): Promise<void> {
     if (!response.ok) {
         await throwError(response);
     }
+}
+
+export async function fetchSettingsPresets(): Promise<SettingsPreset[]> {
+    const response = await fetch("/api/settings/presets");
+
+    if (!response.ok) {
+        await throwError(response);
+    }
+
+    return response.json() as Promise<SettingsPreset[]>;
 }

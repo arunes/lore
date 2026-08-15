@@ -16,7 +16,8 @@ import {
 } from "./ui/select";
 import { ErrorMessage } from "./ui/error-message";
 import { Markdown } from "./ui/markdown";
-import { fetchSettings, saveSettings } from "../api/settingsApi";
+import { cn } from "@/lib/utils";
+import { fetchSettings, fetchSettingsPresets, saveSettings } from "../api/settingsApi";
 import type { Setting } from "../api/settingsTypes";
 
 const GROUP_LABELS: Record<string, string> = {
@@ -180,10 +181,16 @@ export function Settings() {
     const queryClient = useQueryClient();
     const [values, setValues] = useState<Values>({});
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [selectedPreset, setSelectedPreset] = useState("");
+    const [activeGroup, setActiveGroup] = useState("AISettings");
 
     const settingsQuery = useQuery({
         queryKey: ["settings"],
         queryFn: fetchSettings,
+    });
+    const presetsQuery = useQuery({
+        queryKey: ["settings-presets"],
+        queryFn: fetchSettingsPresets,
     });
 
     const allSettings = useMemo(
@@ -290,39 +297,116 @@ export function Settings() {
     }
 
     const saveClickable = dirtyKeys.length > 0 && invalidKeys.length === 0;
+    const visibleGroup =
+        settingsQuery.data.groups.find((group) => group.group === activeGroup) ??
+        settingsQuery.data.groups[0];
+    const loadPreset = () => {
+        const preset = presetsQuery.data?.find((item) => item.name === selectedPreset);
+        if (!preset) return;
+
+        const knownKeys = new Set(allSettings.map((setting) => setting.key));
+        setValues((current) => {
+            const next = { ...current };
+            for (const [key, value] of Object.entries(preset.values)) {
+                if (knownKeys.has(key)) {
+                    next[key] = value;
+                }
+            }
+            return next;
+        });
+        toast.success("Preset loaded", {
+            description: "Review the changes and save them when you are ready.",
+        });
+        setSelectedPreset("");
+    };
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-auto px-4 py-6 sm:px-6">
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-                <div>
+                <div className="flex flex-wrap items-end justify-between gap-3">
                     <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <div className="flex items-end gap-2">
+                        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            Presets:
+                            <Select value={selectedPreset || "none"} onValueChange={(value) => setSelectedPreset(value === "none" ? "" : value ?? "")}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Load a preset" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Load a preset</SelectItem>
+                                    {presetsQuery.data?.map((preset) => (
+                                        <SelectItem key={preset.name} value={preset.name}>{preset.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </label>
+                        <Button type="button" variant="outline" disabled={!selectedPreset} onClick={loadPreset}>Load</Button>
+                    </div>
+                    <p className="order-last basis-full text-sm text-muted-foreground">
                         Configure how Lore connects to models and processes your files.
                     </p>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-2">
-                    {settingsQuery.data.groups.map((group) => (
-                        <Card key={group.group}>
-                            <CardHeader>
-                                <CardTitle>
-                                    {GROUP_LABELS[group.group] ?? group.group}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex flex-col gap-4">
-                                {group.settings.map((setting) => (
-                                    <SettingField
-                                        key={setting.key}
-                                        setting={setting}
-                                        value={values[setting.key] ?? null}
-                                        onChange={(key, value) =>
-                                            setValues((prev) => ({ ...prev, [key]: value }))
-                                        }
-                                    />
-                                ))}
-                            </CardContent>
-                        </Card>
-                    ))}
+                <div
+                    className="flex gap-1 overflow-x-auto border-b border-border"
+                    role="tablist"
+                    aria-label="Settings categories"
+                >
+                    {settingsQuery.data.groups.map((group) => {
+                        const hasInvalidSetting = group.settings.some((setting) =>
+                            invalidKeys.includes(setting.key)
+                        );
+
+                        return (
+                            <button
+                                key={group.group}
+                                type="button"
+                                role="tab"
+                                aria-selected={group.group === visibleGroup.group}
+                                aria-controls={`settings-panel-${group.group}`}
+                                onClick={() => setActiveGroup(group.group)}
+                                className={cn(
+                                    "relative shrink-0 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                                    group.group === visibleGroup.group && "text-foreground",
+                                    hasInvalidSetting && "text-destructive"
+                                )}
+                            >
+                                {GROUP_LABELS[group.group] ?? group.group}
+                                {hasInvalidSetting && (
+                                    <span className="ml-1" aria-label="contains invalid settings">
+                                        ·
+                                    </span>
+                                )}
+                                {group.group === visibleGroup.group && (
+                                    <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div
+                    id={`settings-panel-${visibleGroup.group}`}
+                    role="tabpanel"
+                    aria-label={GROUP_LABELS[visibleGroup.group] ?? visibleGroup.group}
+                >
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                {GROUP_LABELS[visibleGroup.group] ?? visibleGroup.group} settings
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4">
+                            {visibleGroup.settings.map((setting) => (
+                                <SettingField
+                                    key={setting.key}
+                                    setting={setting}
+                                    value={values[setting.key] ?? null}
+                                    onChange={(key, value) =>
+                                        setValues((prev) => ({ ...prev, [key]: value }))
+                                    }
+                                />
+                            ))}
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">

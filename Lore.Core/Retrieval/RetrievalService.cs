@@ -159,13 +159,13 @@ public async Task<List<int>> RetrieveDocumentChunksAsync(
 
     private static string FormatFtsQuery(IEnumerable<string> input)
     {
-        var terms = input
+        var terms = input?
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        if (terms.Length == 0)
+        if (terms == null || terms?.Length == 0)
         {
             return string.Empty;
         }
@@ -177,6 +177,6 @@ public async Task<List<int>> RetrieveDocumentChunksAsync(
 
         return string.Join(
             " OR ",
-            terms.Select(EscapeFts5Phrase));
+            terms!.Select(EscapeFts5Phrase));
     }
 }

@@ -30,7 +30,12 @@ export type SettingsGroup = {
 };
 
 export type SettingsResponse = {
-  groups: SettingsGroup[];
+    groups: SettingsGroup[];
+};
+
+export type SettingsPreset = {
+    name: string;
+    values: Record<string, string>;
 };
 
 export type SettingValue = {

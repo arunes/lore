@@ -87,7 +87,7 @@ export function AppShell() {
                     <Outlet />
                 </main>
             </div>
-            <Toaster position="bottom-right" richColors />
+            <Toaster position="top-center" richColors />
         </div>
     );
 }

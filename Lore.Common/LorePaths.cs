@@ -12,6 +12,8 @@ public static class LorePaths
 
     public static string UserDataDir => Path.Combine(DataRoot, "data");
 
+    public static string PresetsDir => Path.Combine(DataRoot, "presets");
+
     public static bool IsDocker =>
         Environment.GetEnvironmentVariable("LORE_IN_CONTAINER") is not null;
 
@@ -20,7 +22,28 @@ public static class LorePaths
         Directory.CreateDirectory(DataRoot);
         Directory.CreateDirectory(OcrModelsDir);
         Directory.CreateDirectory(UserDataDir);
+        EnsurePresets();
         EnsureOcrModels();
+    }
+
+    private static void EnsurePresets()
+    {
+        string embeddedPresetsDir = Path.Combine(AppContext.BaseDirectory, "presets");
+        if (!Directory.Exists(embeddedPresetsDir))
+        {
+            Directory.CreateDirectory(PresetsDir);
+            return;
+        }
+
+        Directory.CreateDirectory(PresetsDir);
+        foreach (string embeddedFile in Directory.EnumerateFiles(embeddedPresetsDir, "*.json"))
+        {
+            string targetPath = Path.Combine(PresetsDir, Path.GetFileName(embeddedFile));
+            if (!File.Exists(targetPath))
+            {
+                File.Copy(embeddedFile, targetPath);
+            }
+        }
     }
 
     public static void EnsureOcrModels()

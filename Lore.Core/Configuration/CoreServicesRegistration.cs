@@ -11,6 +11,7 @@ public static class CoreServicesRegistration
     {
         return services
             .AddSingleton<IUserSettingsService, UserSettingsService>()
+            .AddSingleton<ISettingsPresetService, SettingsPresetService>()
             .AddSingleton<IActiveChatCache, ActiveChatCache>()
             .AddScoped<IFileCatalogService, FileCatalogService>()
             .AddScoped<IFileSourceService, FileSourceService>()

@@ -130,6 +130,14 @@ public static class Routes
             }
         );
 
+        apiGroup.MapGet(
+            "settings/presets",
+            async (
+                ISettingsPresetService presets,
+                CancellationToken cancellationToken
+            ) => Results.Ok(await presets.GetPresetsAsync(cancellationToken))
+        );
+
         apiGroup.MapPut(
             "settings",
             async (
