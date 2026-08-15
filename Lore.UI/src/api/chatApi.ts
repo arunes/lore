@@ -84,3 +84,17 @@ export async function streamChat({ request, onChunk }: StreamChatOptions): Promi
 
     return chatId!;
 }
+
+export async function resetChat(): Promise<void> {
+    const response = await fetch("/api/chat/reset", { method: "POST" });
+    if (!response.ok) {
+        const problem = await readProblemDetails(response);
+        throw new ApiError(
+            problem.detail ||
+                problem.title ||
+                `Request failed (${response.status} ${response.statusText})`,
+            problem.status ?? response.status,
+            problem.traceId ?? response.headers.get("x-correlation-id") ?? undefined
+        );
+    }
+}

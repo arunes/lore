@@ -4,7 +4,6 @@ using System.Text;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Lore.Common.Models;
-using Microsoft.Extensions.Caching.Memory;
 using Lore.Common.Extensions;
 using Lore.Core.Logging;
 using Lore.Core.Retrieval;
@@ -19,11 +18,9 @@ public class TraditionalRAGService(
     ILogger<TraditionalRAGService> logger,
     IUserSettingsService userSettings,
     IRetrievalService searchTools,
-    IMemoryCache memoryCache
+    IActiveChatCache activeChatCache
 ) : IRAGService
 {
-    private static string GetChatCacheKey(Guid chatId) => $"chat-trad-{chatId}";
-
     public async Task<LoreChatResponse> ChatAsync(
         LoreChatRequest request,
         CancellationToken cancellationToken = default
@@ -39,8 +36,8 @@ public class TraditionalRAGService(
 
         var chatClient = CreateChatClient();
 
-        memoryCache.TryGetValue(GetChatCacheKey(chatId), out List<ChatMessage>? conversationHistory);
-            conversationHistory ??= [new(ChatRole.System, userSettings.GetSetting<string>(UserSettingsType.TraditionalSystemPrompt))];
+        List<ChatMessage>? conversationHistory = activeChatCache.GetTraditionalHistory();
+        conversationHistory ??= [new(ChatRole.System, userSettings.GetSetting<string>(UserSettingsType.TraditionalSystemPrompt))];
 
         var query = await GetRetrievalQueryAsync(chatClient, conversationHistory, request, chatSid, cancellationToken);
         var documentChunkIds = query.NeedsRetrieval ? await searchTools.RetrieveDocumentChunksAsync(query, cancellationToken) : [];
@@ -181,7 +178,7 @@ public class TraditionalRAGService(
             new KeyValuePair<string, object?>("backend", "traditional"));
 
         currentTurnMessages.Add(new ChatMessage(ChatRole.Assistant, llmResponse.ToString()));
-        memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));
+        activeChatCache.SetTraditionalHistory(currentTurnMessages);
     }
 
     private async Task<RetrievalQuery> GetRetrievalQueryAsync(

@@ -1,5 +1,6 @@
 using Lore.Core.Settings;
 using Lore.Core.Files;
+using Lore.Core.RAG;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.Configuration;
@@ -10,6 +11,7 @@ public static class CoreServicesRegistration
     {
         return services
             .AddSingleton<IUserSettingsService, UserSettingsService>()
+            .AddSingleton<IActiveChatCache, ActiveChatCache>()
             .AddScoped<IFileCatalogService, FileCatalogService>()
             .AddScoped<IFileSourceService, FileSourceService>()
             .AddOcrServices()

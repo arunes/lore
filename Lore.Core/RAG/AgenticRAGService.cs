@@ -5,7 +5,6 @@ using Lore.Common.Models;
 using Lore.Core.Logging;
 using Lore.Core.Settings;
 using Lore.Core.Telemetry;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -16,12 +15,10 @@ namespace Lore.Core.RAG;
 public class AgenticRAGService(
     ILogger<AgenticRAGService> logger,
     IUserSettingsService userSettings,
-    IMemoryCache memoryCache,
+    IActiveChatCache activeChatCache,
     IKernelFactory kernelFactory
 ) : IRAGService
 {
-    private static string GetChatCacheKey(Guid chatId) => $"chat-agent-{chatId}";
-
     public async Task<LoreChatResponse> ChatAsync(LoreChatRequest request, CancellationToken cancellationToken = default)
     {
         var chatId = request.ChatId ?? Guid.NewGuid();
@@ -32,7 +29,7 @@ public class AgenticRAGService(
 
         logger.ChatStarted(chatSid, "Agentic");
 
-        memoryCache.TryGetValue(GetChatCacheKey(chatId), out ChatHistory? conversationHistory);
+        ChatHistory? conversationHistory = activeChatCache.GetAgenticHistory();
         conversationHistory ??= new ChatHistory(
             userSettings.GetSetting<string>(UserSettingsType.AgenticSystemPrompt),
             AuthorRole.System);
@@ -71,7 +68,7 @@ public class AgenticRAGService(
             var chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
             var executionSettings = new OpenAIPromptExecutionSettings
             {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
                 Temperature = userSettings.GetSetting<float?>(UserSettingsType.ChatTemperature)
             };
 
@@ -114,6 +111,6 @@ public class AgenticRAGService(
             new KeyValuePair<string, object?>("backend", "agentic"));
 
         currentTurnMessages.AddAssistantMessage(llmResponse.ToString());
-        memoryCache.Set(GetChatCacheKey(chatId), currentTurnMessages, TimeSpan.FromMinutes(15));
+        activeChatCache.SetAgenticHistory(currentTurnMessages);
     }
 }

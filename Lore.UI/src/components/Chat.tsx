@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { streamChat, ApiError } from "@/api/chatApi";
+import { resetChat, streamChat, ApiError } from "@/api/chatApi";
+import { toast } from "sonner";
 import {
     SparklesIcon,
     UserIcon,
@@ -81,6 +82,10 @@ export function Chat() {
         },
     });
 
+    const resetMutation = useMutation({
+        mutationFn: resetChat,
+    });
+
     const runStream = async (prompt: string, messageId: string) => {
         setIsStreaming(true);
         try {
@@ -135,10 +140,41 @@ export function Chat() {
         runStream(message.prompt, message.id);
     };
 
+    const handleNewChat = async () => {
+        if (isStreaming || resetMutation.isPending) return;
+
+        try {
+            await resetMutation.mutateAsync();
+            setMessages([]);
+            setActiveChatId(null);
+            setInput("");
+        } catch (error) {
+            const apiError = toApiError(error);
+            toast.error("Couldn't start a new chat", { description: apiError.message });
+        }
+    };
+
     const isEmpty = messages.length === 0;
 
     return (
         <div className="flex h-full flex-col">
+            <header className="shrink-0 px-4 py-6 sm:px-6">
+                <div className="mx-auto flex w-full max-w-7xl flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-semibold tracking-tight">Chat</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Ask questions and find answers in your indexed documents.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        onClick={handleNewChat}
+                        disabled={isStreaming || resetMutation.isPending}
+                    >
+                        {resetMutation.isPending ? "Starting..." : "New Chat"}
+                    </Button>
+                </div>
+            </header>
             {isEmpty ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6">
                     <div className="flex flex-col items-center gap-4 text-center">

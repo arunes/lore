@@ -68,23 +68,21 @@ export function AppShell() {
                         );
                     })}
                 </nav>
-            </aside>
 
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-                    <p className="text-sm font-medium text-muted-foreground">
-                        {NAV_ITEMS.find((item) => currentPath.startsWith(item.path))?.label ?? "Lore"}
-                    </p>
+                <div className="mt-auto border-t border-sidebar-border p-2">
                     <button
                         type="button"
                         onClick={() => setDark((prev) => !prev)}
                         aria-label="Toggle theme"
-                        className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     >
                         {dark ? <Icon icon={Sun01Icon} size={18} /> : <Icon icon={Moon01Icon} size={18} />}
+                        {dark ? "Light mode" : "Dark mode"}
                     </button>
-                </header>
+                </div>
+            </aside>
 
+            <div className="flex flex-1 flex-col overflow-hidden">
                 <main className="min-h-0 flex-1 overflow-hidden">
                     <Outlet />
                 </main>

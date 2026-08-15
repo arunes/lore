@@ -41,6 +41,15 @@ public static class Routes
             }
         );
 
+        apiGroup.MapPost(
+            "chat/reset",
+            (IActiveChatCache activeChatCache) =>
+            {
+                activeChatCache.Clear();
+                return Results.NoContent();
+            }
+        );
+
         apiGroup.MapGet(
             "files",
             async (
