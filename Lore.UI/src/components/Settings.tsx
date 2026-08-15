@@ -253,28 +253,38 @@ export function Settings() {
 
     if (settingsQuery.isLoading) {
         return (
-            <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                Loading settings…
+            <div className="flex h-full min-h-0 flex-col overflow-auto px-4 py-6 sm:px-6">
+                <div className="mx-auto flex w-full max-w-7xl items-center justify-center py-16 text-sm text-muted-foreground">
+                    Loading settings…
+                </div>
             </div>
         );
     }
 
     if (settingsQuery.isError || !settingsQuery.data) {
         return (
-            <div className="flex h-full flex-col gap-3 p-6">
-                <ErrorMessage
-                    title="Failed to load settings"
-                    message={
-                        settingsQuery.error instanceof Error
-                            ? settingsQuery.error.message
-                            : "Try again in a moment."
-                    }
-                    action={
-                        <Button variant="outline" onClick={() => settingsQuery.refetch()}>
-                            Retry
-                        </Button>
-                    }
-                />
+            <div className="flex h-full min-h-0 flex-col overflow-auto px-4 py-6 sm:px-6">
+                <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
+                    <div>
+                        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Configure how Lore connects to models and processes your files.
+                        </p>
+                    </div>
+                    <ErrorMessage
+                        title="Failed to load settings"
+                        message={
+                            settingsQuery.error instanceof Error
+                                ? settingsQuery.error.message
+                                : "Try again in a moment."
+                        }
+                        action={
+                            <Button variant="outline" onClick={() => settingsQuery.refetch()}>
+                                Retry
+                            </Button>
+                        }
+                    />
+                </div>
             </div>
         );
     }
@@ -282,9 +292,16 @@ export function Settings() {
     const saveClickable = dirtyKeys.length > 0 && invalidKeys.length === 0;
 
     return (
-        <div className="flex h-full flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-6">
+        <div className="flex h-full min-h-0 flex-col overflow-auto px-4 py-6 sm:px-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+                <div>
+                    <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Configure how Lore connects to models and processes your files.
+                    </p>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
                     {settingsQuery.data.groups.map((group) => (
                         <Card key={group.group}>
                             <CardHeader>
@@ -307,10 +324,8 @@ export function Settings() {
                         </Card>
                     ))}
                 </div>
-            </div>
 
-            <div className="shrink-0 border-t border-border bg-background px-6 py-3">
-                <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+                <div className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
                     {saveError ? (
                         <p className="text-xs text-destructive">Save failed — see details above.</p>
                     ) : dirtyKeys.length > 0 ? (

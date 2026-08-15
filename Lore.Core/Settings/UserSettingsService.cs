@@ -7,9 +7,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Lore.Core.Settings;
 
-public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbContext dbContext) : IUserSettingsService
+public class UserSettingsService(
+    ILogger<UserSettingsService> logger,
+    IDbContextFactory<LoreDbContext> dbContextFactory)
+    : IUserSettingsService
 {
     private readonly Dictionary<UserSettingsType, string?> _settings = [];
+    private readonly Lock _settingsLock = new();
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
 
     public T GetSetting<T>(UserSettingsType settingsType)
     {
@@ -31,58 +36,87 @@ public class UserSettingsService(ILogger<UserSettingsService> logger, LoreDbCont
 
     public string? GetResolvedValue(UserSettingsType settingsType)
     {
-        if (_settings.TryGetValue(settingsType, out string? value))
+        lock (_settingsLock)
         {
-            return value;
-        }
+            if (_settings.TryGetValue(settingsType, out string? value))
+            {
+                return value;
+            }
 
-        return SettingsCatalog.ByKey(settingsType).DefaultValue?.ToString();
+            return SettingsCatalog.ByKey(settingsType).DefaultValue?.ToString();
+        }
     }
 
     public async Task SaveAsync(IReadOnlyDictionary<UserSettingsType, string?> values, CancellationToken cancellationToken)
     {
-        foreach (var (settingKey, value) in values)
+        await _saveLock.WaitAsync(cancellationToken);
+        try
         {
-            var definition = SettingsCatalog.ByKey(settingKey);
-            if (definition.IsRequired && string.IsNullOrWhiteSpace(value))
+            await using LoreDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+            foreach (var (settingKey, value) in values)
             {
-                throw new ArgumentException(
-                    $"Setting '{definition.DisplayName}' ({settingKey}) is required and cannot be empty.",
-                    nameof(values));
+                var definition = SettingsCatalog.ByKey(settingKey);
+                if (definition.IsRequired && string.IsNullOrWhiteSpace(value))
+                {
+                    throw new ArgumentException(
+                        $"Setting '{definition.DisplayName}' ({settingKey}) is required and cannot be empty.",
+                        nameof(values));
+                }
+
+                string key = settingKey.ToString();
+                Setting? existing = await dbContext.Settings.FindAsync([key], cancellationToken);
+                if (existing is null)
+                {
+                    dbContext.Settings.Add(new Setting { Key = key, Value = value });
+                }
+                else
+                {
+                    existing.Value = value;
+                }
             }
 
-            string key = settingKey.ToString();
-            Setting? existing = await dbContext.Settings.FindAsync([key], cancellationToken);
-            if (existing is null)
-            {
-                dbContext.Settings.Add(new Setting { Key = key, Value = value });
-            }
-            else
-            {
-                existing.Value = value;
-            }
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-            _settings[settingKey] = value;
+            lock (_settingsLock)
+            {
+                foreach (var (settingKey, value) in values)
+                {
+                    _settings[settingKey] = value;
+                }
+            }
         }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
+        finally
+        {
+            _saveLock.Release();
+        }
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        await using LoreDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var allSettings = await dbContext.Settings.ToListAsync(cancellationToken);
 
-        foreach (var setting in allSettings)
+        lock (_settingsLock)
         {
-            if (!Enum.TryParse(setting.Key, out UserSettingsType settingKey))
+            foreach (var setting in allSettings)
             {
-                continue;
-            }
+                if (!Enum.TryParse(setting.Key, out UserSettingsType settingKey))
+                {
+                    continue;
+                }
 
-            _settings[settingKey] = setting.Value;
+                _settings[settingKey] = setting.Value;
+            }
         }
 
-        logger.SettingsLoaded(_settings.Count);
+        int settingsCount;
+        lock (_settingsLock)
+        {
+            settingsCount = _settings.Count;
+        }
+
+        logger.SettingsLoaded(settingsCount);
     }
 
     public static T ConvertValue<T>(object value)

@@ -2,6 +2,7 @@ import { createRouter, createRootRoute, createRoute, redirect } from "@tanstack/
 import { Chat } from "./components/Chat";
 import { Settings } from "./components/Settings";
 import { AppShell } from "./components/layout/AppShell";
+import { MyFiles } from "./components/MyFiles";
 
 const rootRoute = createRootRoute({
     component: () => <AppShell />,
@@ -19,6 +20,12 @@ const settingsRoute = createRoute({
     component: () => <Settings />,
 });
 
+const filesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/files",
+    component: () => <MyFiles />,
+});
+
 const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
@@ -28,7 +35,7 @@ const indexRoute = createRoute({
     component: () => null,
 });
 
-const routeTree = rootRoute.addChildren([chatRoute, settingsRoute, indexRoute]);
+const routeTree = rootRoute.addChildren([chatRoute, filesRoute, settingsRoute, indexRoute]);
 
 export const router = createRouter({ routeTree });
 

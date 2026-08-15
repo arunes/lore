@@ -1,4 +1,5 @@
 using Lore.Core.Settings;
+using Lore.Core.Files;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lore.Core.Configuration;
@@ -9,6 +10,7 @@ public static class CoreServicesRegistration
     {
         return services
             .AddSingleton<IUserSettingsService, UserSettingsService>()
+            .AddScoped<IFileCatalogService, FileCatalogService>()
             .AddOcrServices()
             .AddMCPServices()
             .AddTextExtractors()

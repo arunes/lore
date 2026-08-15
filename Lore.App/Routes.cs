@@ -1,5 +1,6 @@
 using Lore.App.Logging;
 using Lore.Common.Models;
+using Lore.Core.Files;
 using Lore.Core.RAG;
 using Lore.Core.Settings;
 
@@ -38,6 +39,15 @@ public static class Routes
                     await response.Body.FlushAsync(cancellationToken);
                 }
             }
+        );
+
+        apiGroup.MapGet(
+            "files",
+            async (
+                [AsParameters] FileCatalogQuery query,
+                IFileCatalogService fileCatalog,
+                CancellationToken cancellationToken
+            ) => Results.Ok(await fileCatalog.GetFilesAsync(query, cancellationToken))
         );
 
         apiGroup.MapGet(

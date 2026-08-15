@@ -5,6 +5,7 @@ import {
     Sun01Icon,
     Moon01Icon,
     SparklesIcon,
+    Folder01Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/icon";
@@ -13,6 +14,7 @@ import { Toaster } from "sonner";
 
 const NAV_ITEMS = [
     { path: "/chat", label: "Chat", icon: Chat01Icon },
+    { path: "/files", label: "My Files", icon: Folder01Icon },
     { path: "/settings", label: "Settings", icon: Settings01Icon },
 ] as const;
 
