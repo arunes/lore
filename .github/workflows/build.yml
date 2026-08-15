@@ -25,6 +25,8 @@ jobs:
 
       - run: dotnet build Lore.App/Lore.App.csproj --no-restore
 
+      - run: dotnet test Lore.UnitTests
+
       - run: dotnet format style Lore.App/Lore.App.csproj --verify-no-changes --no-restore
 
       - run: dotnet format analyzers Lore.App/Lore.App.csproj --verify-no-changes --no-restore
