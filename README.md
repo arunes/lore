@@ -1,6 +1,8 @@
 # lore
 local object retrieval engine
 
+[![build](https://github.com/arunes/lore/actions/workflows/build.yml/badge.svg)](https://github.com/arunes/lore/actions/workflows/build.yml)
+
 ![Lore usage](.images/lore_usage.gif)
 
 > [!IMPORTANT]
