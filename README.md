@@ -1,7 +1,7 @@
 # lore
 local object retrieval engine
 
-GIF
+![Lore usage](.images/lore_usage.gif)
 
 > [!IMPORTANT]
 > This is a highly experimental project. I used some 3rd-party packages that don't have stable versions yet.
