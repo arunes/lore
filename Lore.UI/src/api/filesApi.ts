@@ -1,5 +1,9 @@
 import { ApiError } from "./chatApi";
-import type { FileCatalogParams, FileCatalogResponse } from "./filesTypes";
+import type {
+    FileCatalogParams,
+    FileCatalogResponse,
+    FileSource,
+} from "./filesTypes";
 
 export async function fetchFiles(params: FileCatalogParams): Promise<FileCatalogResponse> {
     const searchParams = new URLSearchParams({
@@ -22,4 +26,41 @@ export async function fetchFiles(params: FileCatalogParams): Promise<FileCatalog
     }
 
     return response.json() as Promise<FileCatalogResponse>;
+}
+
+async function checkResponse(response: Response): Promise<void> {
+    if (response.ok) return;
+    const detail = await response.text();
+    throw new ApiError(detail || `Request failed (${response.status})`, response.status);
+}
+
+export async function fetchFileSources(): Promise<FileSource[]> {
+    const response = await fetch("/api/files/sources");
+    await checkResponse(response);
+    return response.json() as Promise<FileSource[]>;
+}
+
+export async function addFileSource(path: string, excludeExtensions: string): Promise<FileSource> {
+    const response = await fetch("/api/files/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, excludeExtensions: excludeExtensions || null }),
+    });
+    await checkResponse(response);
+    return response.json() as Promise<FileSource>;
+}
+
+export async function updateFileSource(id: number, excludeExtensions: string): Promise<FileSource> {
+    const response = await fetch(`/api/files/sources/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excludeExtensions: excludeExtensions || null }),
+    });
+    await checkResponse(response);
+    return response.json() as Promise<FileSource>;
+}
+
+export async function deleteFileSource(id: number): Promise<void> {
+    const response = await fetch(`/api/files/sources/${id}`, { method: "DELETE" });
+    await checkResponse(response);
 }

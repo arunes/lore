@@ -11,6 +11,7 @@ public static class CoreServicesRegistration
         return services
             .AddSingleton<IUserSettingsService, UserSettingsService>()
             .AddScoped<IFileCatalogService, FileCatalogService>()
+            .AddScoped<IFileSourceService, FileSourceService>()
             .AddOcrServices()
             .AddMCPServices()
             .AddTextExtractors()

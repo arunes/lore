@@ -51,6 +51,46 @@ public static class Routes
         );
 
         apiGroup.MapGet(
+            "files/sources",
+            async (
+                IFileSourceService fileSources,
+                CancellationToken cancellationToken
+            ) => Results.Ok(await fileSources.GetAsync(cancellationToken))
+        );
+
+        apiGroup.MapPost(
+            "files/sources",
+            async (
+                AddFileSourceRequest request,
+                IFileSourceService fileSources,
+                CancellationToken cancellationToken
+            ) => Results.Ok(await fileSources.AddAsync(request, cancellationToken))
+        );
+
+        apiGroup.MapPut(
+            "files/sources/{id:int}",
+            async (
+                int id,
+                UpdateFileSourceRequest request,
+                IFileSourceService fileSources,
+                CancellationToken cancellationToken
+            ) => Results.Ok(await fileSources.UpdateAsync(id, request, cancellationToken))
+        );
+
+        apiGroup.MapDelete(
+            "files/sources/{id:int}",
+            async (
+                int id,
+                IFileSourceService fileSources,
+                CancellationToken cancellationToken
+            ) =>
+            {
+                await fileSources.DeleteAsync(id, cancellationToken);
+                return Results.NoContent();
+            }
+        );
+
+        apiGroup.MapGet(
             "settings",
             (IUserSettingsService userSettings) =>
             {

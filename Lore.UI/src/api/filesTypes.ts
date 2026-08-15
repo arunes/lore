@@ -44,3 +44,10 @@ export type FileCatalogParams = {
     sortBy: string;
     sortDirection: "asc" | "desc";
 };
+
+export type FileSource = {
+    id: number;
+    path: string;
+    excludeExtensions: string | null;
+    isEnabled: boolean;
+};
