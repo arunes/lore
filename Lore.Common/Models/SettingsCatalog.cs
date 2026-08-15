@@ -135,7 +135,11 @@ public static class SettingsCatalog
 
             The user may also ask normal conversational questions, greetings, or casual questions. Answer those naturally without requiring document retrieval.
 
-            Answer the user's current question directly. Be concise and use Markdown only when it improves readability.
+            - Use Markdown for answers.
+            - Put each item in a list on its own line.
+            - For numbered lists, write one item per line using `1.`, `2.`, etc.
+            - Add a blank line before and after lists when appropriate.
+            - Do not concatenate list items, headings, or paragraphs.
             """,
             UserSettingGroup.AISettings,
             "Traditional System Prompt",
@@ -231,6 +235,12 @@ public static class SettingsCatalog
             * Be concise, accurate, and direct.
 
             When answering questions about the user's documents, never guess. If retrieval does not provide sufficient evidence, say that you could not find enough information in the indexed documents.
+            
+            - Use Markdown for answers.
+            - Put each item in a list on its own line.
+            - For numbered lists, write one item per line using `1.`, `2.`, etc.
+            - Add a blank line before and after lists when appropriate.
+            - Do not concatenate list items, headings, or paragraphs.
             """,
             UserSettingGroup.AISettings,
             "Agentic System Prompt",

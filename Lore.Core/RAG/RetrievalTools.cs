@@ -71,7 +71,7 @@ public class RetrievalTools(
         return await dbContext
             .Files
             .AsNoTracking()
-            .Where(fl => fl.Path.Contains(fileName))
+            .Where(fl => fl.Path.ToLower().Contains(fileName.Trim().ToLowerInvariant()))
             .Select(fl => new SearchFilesByNameResponse(
                 fl.Id,
                 fl.Name,
@@ -93,11 +93,26 @@ public class RetrievalTools(
             throw new Exception("Tool is disabled. User can enable the `Get Full File Content` tool in settings.");
         }
 
-        var hasPermission = await dbContext
+        string normalizedFilePath = Path.GetFullPath(filePath);
+        string normalizedFilePathForComparison = normalizedFilePath.ToLowerInvariant();
+        var sourcePaths = await dbContext
             .FileSources
             .AsNoTracking()
-            .Where(fs => fs.IsEnabled && filePath.StartsWith(fs.Path))
-            .AnyAsync(cancellationToken);
+            .Where(fs => fs.IsEnabled)
+            .Select(fs => fs.Path)
+            .ToListAsync(cancellationToken);
+
+        var hasPermission = sourcePaths.Any(sourcePath =>
+        {
+            string normalizedSourcePath = Path.GetFullPath(sourcePath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string normalizedSourcePathForComparison = normalizedSourcePath.ToLowerInvariant();
+
+            return normalizedFilePathForComparison == normalizedSourcePathForComparison
+                || normalizedFilePathForComparison.StartsWith(
+                    normalizedSourcePathForComparison + Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal);
+        });
 
         if (!hasPermission)
         {
@@ -111,7 +126,7 @@ public class RetrievalTools(
 
         var dbFileContent = await dbContext
             .Files
-            .Where(fl => fl.Path == filePath)
+            .Where(fl => fl.Path.ToLower() == normalizedFilePathForComparison)
             .Select(fl => fl.Content)
             .FirstOrDefaultAsync(cancellationToken: cancellationToken);
 
@@ -135,9 +150,25 @@ public class RetrievalTools(
             throw new Exception("Tool is disabled. User can enable the `Get Directory Contents` tool in settings.");
         }
 
-        var isAllowed = await dbContext.FileSources
+        string normalizedFolderPath = Path.GetFullPath(folderPath);
+        string normalizedFolderPathForComparison = normalizedFolderPath.ToLowerInvariant();
+        var sourcePaths = await dbContext.FileSources
             .AsNoTracking()
-            .AnyAsync(fs => fs.IsEnabled && folderPath.StartsWith(fs.Path), cancellationToken);
+            .Where(fs => fs.IsEnabled)
+            .Select(fs => fs.Path)
+            .ToListAsync(cancellationToken);
+
+        var isAllowed = sourcePaths.Any(sourcePath =>
+        {
+            string normalizedSourcePath = Path.GetFullPath(sourcePath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string normalizedSourcePathForComparison = normalizedSourcePath.ToLowerInvariant();
+
+            return normalizedFolderPathForComparison == normalizedSourcePathForComparison
+                || normalizedFolderPathForComparison.StartsWith(
+                    normalizedSourcePathForComparison + Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal);
+        });
 
         if (!isAllowed)
         {
@@ -146,7 +177,7 @@ public class RetrievalTools(
 
         return await dbContext.Files
             .AsNoTracking()
-            .Where(f => f.Directory == folderPath)
+            .Where(f => f.Directory.ToLower() == normalizedFolderPathForComparison)
             .Select(f => new DirectoryListingItem(
                 f.Id, f.Name, f.Path, false, f.Extension, f.Size))
             .ToListAsync(cancellationToken);
@@ -166,7 +197,7 @@ public class RetrievalTools(
 
         return await dbContext.Files
             .AsNoTracking()
-            .Where(f => f.Directory.Contains(directoryKeyword))
+            .Where(f => f.Directory.ToLower().Contains(directoryKeyword.Trim().ToLowerInvariant()))
             .Select(f => f.Directory)
             .Distinct()
             .Take(20)
@@ -192,17 +223,24 @@ public class RetrievalTools(
 
         if (!string.IsNullOrWhiteSpace(categoryName))
         {
-            query = query.Where(f => f.PrimaryCategory != null && f.PrimaryCategory.Name.Contains(categoryName));
+            string normalizedCategoryName = categoryName.Trim().ToLowerInvariant();
+            query = query.Where(f =>
+                f.PrimaryCategory != null
+                && f.PrimaryCategory.Name.ToLower().Contains(normalizedCategoryName));
         }
 
         if (!string.IsNullOrWhiteSpace(documentTypeName))
         {
-            query = query.Where(f => f.DocumentType != null && f.DocumentType.Name.Contains(documentTypeName));
+            string normalizedDocumentTypeName = documentTypeName.Trim().ToLowerInvariant();
+            query = query.Where(f =>
+                f.DocumentType != null
+                && f.DocumentType.Name.ToLower().Contains(normalizedDocumentTypeName));
         }
 
         if (!string.IsNullOrWhiteSpace(extension))
         {
-            query = query.Where(f => f.Extension == extension);
+            string normalizedExtension = extension.Trim().ToLowerInvariant();
+            query = query.Where(f => f.Extension.ToLower() == normalizedExtension);
         }
 
         return await query

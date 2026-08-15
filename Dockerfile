@@ -18,11 +18,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
-ENV URLS=http://+:8080
 ENV LORE_DATA_ROOT=/app/lore
 ENV LORE_IN_CONTAINER=true
-# OCR models (shipped via RapidOcrNet at /app/models/v5) and the embedding
-# model are copied/kept under the data root on first startup.
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "Lore.App.dll"]
